@@ -319,4 +319,7 @@ Resources:
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3 
 
+#Dynamo
+
+#Aurora MySQL
 
