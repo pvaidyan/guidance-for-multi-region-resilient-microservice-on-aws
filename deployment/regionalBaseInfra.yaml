@@ -143,17 +143,6 @@ Resources:
     Type:  AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref Vpc
-  EKSNodeSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref Vpc
-      GroupDescription: "Security Group for EKS Nodes"
-      SecurityGroupIngress:
-        - FromPort: 443
-          ToPort: 443
-          IpProtocol: tcp
-          CidrIp: !GetAtt Vpc.CidrBlock
-          Description: "Allows inbound traffic for HTTPS"
   VPCEndpointSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -222,6 +211,12 @@ Resources:
           - !Ref PrivateSubnet1
           - !Ref PrivateSubnet2
           - !Ref PrivateSubnet3 
+  # ADOT:
+  #   Type: AWS::EKS::Addon
+  #   Properties:
+  #     AddonName: adot
+  #     ClusterName: !Ref EKSCluster
+
   EKSClusterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -319,7 +314,22 @@ Resources:
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3 
 
+# Managed Grafana
+
+# Managed Prometheus
+
 #Dynamo
 
 #Aurora MySQL
+
+Outputs:
+  EKSClusterName:
+    Description: The name of the EKS Cluster
+    Value: !Ref EKSCluster
+  EKSOidcUrl:
+    Description: The OIDC endpoint URL of the EKS Cluster
+    Value: !GetAtt EKSCluster.OpenIdConnectIssuerUrl
+  EKSApiEndpoint:
+    Description: The Kubernetes API server endpoint URL
+    Value: !GetAtt EKSCluster.Endpoint
 
