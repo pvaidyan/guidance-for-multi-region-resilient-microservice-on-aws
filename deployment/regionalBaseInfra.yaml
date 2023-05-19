@@ -211,11 +211,11 @@ Resources:
           - !Ref PrivateSubnet1
           - !Ref PrivateSubnet2
           - !Ref PrivateSubnet3 
-  # ADOT:
-  #   Type: AWS::EKS::Addon
-  #   Properties:
-  #     AddonName: adot
-  #     ClusterName: !Ref EKSCluster
+  CoreDNS:
+    Type: AWS::EKS::Addon
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref EKSCluster
 
   EKSClusterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -309,6 +309,7 @@ Resources:
       PodExecutionRoleArn: !GetAtt EKSFargatePodExecutionRole.Arn
       Selectors: 
         - Namespace: ui
+        - Namespace: kube-system
       Subnets: 
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
