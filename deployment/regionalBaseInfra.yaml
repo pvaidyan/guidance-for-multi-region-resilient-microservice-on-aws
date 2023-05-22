@@ -14,6 +14,14 @@ Parameters:
     Type: String
     Description: Tke Kubernetes version of the created EKS cluster
     Default: 1.26
+  PrimaryRegion:
+    Type: String
+    Description: Enter the Primary Region
+    Default: "us-east-1"
+  StandbyRegion:
+    Type: String
+    Description: Enter the Standby Region
+    Default: "us-west-2"
 
 Mappings:
   RegionMap:
@@ -38,6 +46,9 @@ Conditions:
   isPrimary: !Equals
     - !Ref AWS::Region
     - us-east-1
+  isStandby: !Equals
+    - !Ref AWS::Region
+    - us-west-2
 
 Resources:
   #VPC
@@ -199,11 +210,142 @@ Resources:
           Condition:
             ArnLike:
               "aws:SourceArn": !Sub "arn:aws:eks:${AWS::Region}:${AWS::AccountId}:fargateprofile/${EKSCluster}/*"
+  EksClusterPrimaryRegionKMSEncryptionKey:
+    Type: 'AWS::KMS::Key'
+    Condition: isPrimary
+    Properties:
+      Description: KMS Key for EKS Cluster Secrets Encryption in Primary Region
+      MultiRegion: true
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      Enabled: true
+      KeyUsage: 'ENCRYPT_DECRYPT'
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterEncryptionKey"
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: keyPolicyForEKSKey
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Action: 'kms:*'
+            Resource: '*'
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
+          - Sid: Allow use of the keyGrant
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+            Action:
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:RevokeGrant'
+            Resource: '*'
+  EKSClusterKMSKeyIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: isPrimary
+    Properties:
+      Name: !Sub "EKSClusterKMSKeyIdSecret${Env}"
+      Description: "EKS Cluster KMS KeyId Secret"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref EksClusterPrimaryRegionKMSEncryptionKey
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterKMSKeyIdSecret${Env}"
+  EksClusterStandbyRegionKMSEncryptionKey:
+    Type: AWS::KMS::ReplicaKey
+    Condition: isStandby
+    Properties:
+      Description: KMS Key for EKS Cluster Secrets Encryption in Standby Region
+      Enabled: Boolean
+      PrimaryKeyArn: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/{{resolve:secretsmanager:EKSClusterKMSKeyIdSecret${Env}}}'
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: keyPolicyForEKSKey
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Action: 'kms:*'
+            Resource: '*'
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
+          - Sid: Allow use of the keyGrant
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+            Action:
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:RevokeGrant'
+            Resource: '*'
+      PendingWindowInDays: 7
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterEncryptionKey"
   EKSCluster:
     Type: AWS::EKS::Cluster
+    DependsOn: EKSClusterKMSKeyIdSecret
     Properties:
       Version: !Ref EKSClusterVersion
       RoleArn: !GetAtt EKSClusterRole.Arn
+      EncryptionConfig:
+        - Provider:
+            KeyArn: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/{{resolve:secretsmanager:EKSClusterKMSKeyIdSecret${Env}}}'
+          Resources:
+            - "secrets"
       ResourcesVpcConfig:
         SecurityGroupIds:
           - !Ref EKSClusterSecurityGroup
@@ -301,9 +443,11 @@ Resources:
       Subnets: 
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3 
+        - !Ref PrivateSubnet3
+#### Only Fatgate Profile can be created or deleted at any point in time. Refer: https://repost.aws/knowledge-center/fargate-troubleshoot-profile-creation
   EKSFargateNodes2:
     Type: AWS::EKS::FargateProfile
+    DependsOn: EKSFargateNodes1
     Properties: 
       ClusterName: !Ref EKSCluster
       PodExecutionRoleArn: !GetAtt EKSFargatePodExecutionRole.Arn
