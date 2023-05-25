@@ -13,7 +13,7 @@ Parameters:
   EKSClusterVersion:
     Type: String
     Description: Tke Kubernetes version of the created EKS cluster
-    Default: 1.26
+    Default: 1.27
   PrimaryRegion:
     Type: String
     Description: Enter the Primary Region
@@ -178,7 +178,126 @@ Resources:
         - !Ref PrivateSubnet3
       SecurityGroupIds:
         - !Ref VPCEndpointSecurityGroup
-  
+  VPCEndpointForS3:            
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !Ref Vpc
+  VPCEndpointForDynamoDB:            
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      VpcId: !Ref Vpc
+  VPCEndpointForSecretsManager:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+        VpcEndpointType: Interface
+        VpcId: !Ref Vpc
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+          - !Ref PrivateSubnet3
+        SecurityGroupIds:
+          - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForEC2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForELB:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticloadbalancing'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForCloudWatchLogs:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForSTS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForECRApi:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForECRDkr:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForXRay:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.xray'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
   #EKS
   EKSClusterRole:
     Type: AWS::IAM::Role
@@ -210,6 +329,26 @@ Resources:
           Condition:
             ArnLike:
               "aws:SourceArn": !Sub "arn:aws:eks:${AWS::Region}:${AWS::AccountId}:fargateprofile/${EKSCluster}/*"
+  EKSNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Principal:
+            Service:
+               - ec2.amazonaws.com
+          Action: sts:AssumeRole
+  EKSNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: 
+        - !Ref EKSNodeRole
   EksClusterPrimaryRegionKMSEncryptionKey:
     Type: 'AWS::KMS::Key'
     Condition: isPrimary
@@ -339,6 +478,14 @@ Resources:
     Type: AWS::EKS::Cluster
     DependsOn: EKSClusterKMSKeyIdSecret
     Properties:
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
       Version: !Ref EKSClusterVersion
       RoleArn: !GetAtt EKSClusterRole.Arn
       EncryptionConfig:
@@ -347,6 +494,8 @@ Resources:
           Resources:
             - "secrets"
       ResourcesVpcConfig:
+        EndpointPublicAccess: false
+        EndpointPrivateAccess: true
         SecurityGroupIds:
           - !Ref EKSClusterSecurityGroup
         SubnetIds:
@@ -358,7 +507,6 @@ Resources:
     Properties:
       AddonName: coredns
       ClusterName: !Ref EKSCluster
-
   EKSClusterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -429,7 +577,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 443
       ToPort: 443
-  EKSFargateNodes1:
+  EKSFargateNodes:
     Type: AWS::EKS::FargateProfile
     Properties: 
       ClusterName: !Ref EKSCluster
@@ -444,16 +592,17 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
         - !Ref PrivateSubnet3
-#### Only Fatgate Profile can be created or deleted at any point in time. Refer: https://repost.aws/knowledge-center/fargate-troubleshoot-profile-creation
-  EKSFargateNodes2:
-    Type: AWS::EKS::FargateProfile
-    DependsOn: EKSFargateNodes1
+  EKSNodeGroup:
+    Type: AWS::EKS::Nodegroup
     Properties: 
       ClusterName: !Ref EKSCluster
-      PodExecutionRoleArn: !GetAtt EKSFargatePodExecutionRole.Arn
-      Selectors: 
-        - Namespace: ui
-        - Namespace: kube-system
+      NodeRole: !GetAtt EKSNodeRole.Arn
+      InstanceTypes:
+        - t3.large
+      ScalingConfig:
+        MinSize: 2
+        DesiredSize: 3
+        MaxSize: 7
       Subnets: 
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
