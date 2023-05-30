@@ -1,0 +1,629 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'Infrastructure'
+
+Parameters:
+  Env:
+    Type: String
+    Default: ''
+    Description: String to enable multiple deployments per AWS region
+  NamingPrefix:
+    Type: String
+    Description: The prefix to be used for resources created by this template.
+    Default: mr-app
+  EKSClusterVersion:
+    Type: String
+    Description: Tke Kubernetes version of the created EKS cluster
+    Default: 1.27
+  PrimaryRegion:
+    Type: String
+    Description: Enter the Primary Region
+    Default: "us-east-1"
+  StandbyRegion:
+    Type: String
+    Description: Enter the Standby Region
+    Default: "us-west-2"
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "VPCCidrBlock": 10.1.0.0/16
+      "PrivateCidrBlock1": 10.1.0.0/20
+      "PrivateCidrBlock2": 10.1.16.0/20
+      "PrivateCidrBlock3": 10.1.32.0/20
+      "AvailabilityZoneId1": use1-az1
+      "AvailabilityZoneId2": use1-az4
+      "AvailabilityZoneId3": use1-az6
+    us-west-2:
+      "VPCCidrBlock": 10.2.0.0/16
+      "PrivateCidrBlock1": 10.2.0.0/20
+      "PrivateCidrBlock2": 10.2.16.0/20
+      "PrivateCidrBlock3": 10.2.32.0/20
+      "AvailabilityZoneId1": usw2-az1
+      "AvailabilityZoneId2": usw2-az2
+      "AvailabilityZoneId3": usw2-az3
+
+Conditions:
+  isPrimary: !Equals
+    - !Ref AWS::Region
+    - us-east-1
+  isStandby: !Equals
+    - !Ref AWS::Region
+    - us-west-2
+
+Resources:
+  #VPC
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", "VPCCidrBlock"]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  FlowLogRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Action:
+                - "sts:AssumeRole"
+              Effect: Allow
+              Principal:
+                Service:
+                  - vpc-flow-logs.amazonaws.com
+          Version: "2012-10-17"
+        Path: /
+        Policies:
+          - PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                    - "logs:DescribeLogGroups"
+                    - "logs:DescribeLogStreams"
+                  Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
+              Version: "2012-10-17"
+            PolicyName: flowlogspolicy
+      Type: "AWS::IAM::Role"
+  VpcFlowLogs:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
+      LogGroupName: VpcFlowLogs
+      ResourceId: !Ref Vpc
+      ResourceType: VPC
+      TrafficType: ALL
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId1]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock1]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Ref NamingPrefix
+              - Private
+  PrivateRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId2]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock2]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Ref NamingPrefix
+              - Private
+  PrivateRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId3]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock3]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Ref NamingPrefix
+              - Private
+  PrivateRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet3
+  PrivateRouteTable:
+    Type:  AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Vpc
+      GroupDescription: "Security Group for VPC Endpoint"
+      SecurityGroupIngress:
+        - FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+          CidrIp: !GetAtt Vpc.CidrBlock
+          Description: "Allows inbound traffic for HTTPS"
+  VPCEndpointForEKS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.eks'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForS3:            
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !Ref Vpc
+  VPCEndpointForDynamoDB:            
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      VpcId: !Ref Vpc
+  VPCEndpointForSecretsManager:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+        VpcEndpointType: Interface
+        VpcId: !Ref Vpc
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+          - !Ref PrivateSubnet3
+        SecurityGroupIds:
+          - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForEC2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForELB:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticloadbalancing'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForCloudWatchLogs:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForSTS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForECRApi:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForECRDkr:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForXRay:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.xray'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  #EKS
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+            Effect: Allow
+            Principal:
+              Service:
+                - eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+  EKSFargatePodExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: 
+              - eks-fargate-pods.amazonaws.com
+          Action: sts:AssumeRole
+          Condition:
+            ArnLike:
+              "aws:SourceArn": !Sub "arn:aws:eks:${AWS::Region}:${AWS::AccountId}:fargateprofile/${EKSCluster}/*"
+  EKSNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Principal:
+            Service:
+               - ec2.amazonaws.com
+          Action: sts:AssumeRole
+  EKSNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: 
+        - !Ref EKSNodeRole
+  EksClusterPrimaryRegionKMSEncryptionKey:
+    Type: 'AWS::KMS::Key'
+    Condition: isPrimary
+    Properties:
+      Description: KMS Key for EKS Cluster Secrets Encryption in Primary Region
+      MultiRegion: true
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      Enabled: true
+      KeyUsage: 'ENCRYPT_DECRYPT'
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterEncryptionKey"
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: keyPolicyForEKSKey
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Action: 'kms:*'
+            Resource: '*'
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
+          - Sid: Allow use of the keyGrant
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+            Action:
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:RevokeGrant'
+            Resource: '*'
+  EKSClusterKMSKeyIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: isPrimary
+    Properties:
+      Name: !Sub "EKSClusterKMSKeyIdSecret${Env}"
+      Description: "EKS Cluster KMS KeyId Secret"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref EksClusterPrimaryRegionKMSEncryptionKey
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterKMSKeyIdSecret${Env}"
+  EksClusterStandbyRegionKMSEncryptionKey:
+    Type: AWS::KMS::ReplicaKey
+    Condition: isStandby
+    Properties:
+      Description: KMS Key for EKS Cluster Secrets Encryption in Standby Region
+      Enabled: Boolean
+      PrimaryKeyArn: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/{{resolve:secretsmanager:EKSClusterKMSKeyIdSecret${Env}}}'
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: keyPolicyForEKSKey
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Action: 'kms:*'
+            Resource: '*'
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
+          - Sid: Allow use of the keyGrant
+            Effect: Allow
+            Principal:
+              "AWS": "*"
+            Condition:
+              StringEquals:
+                "aws:ResourceAccount": !Sub "${AWS::AccountId}"
+                "aws:PrincipalAccount": !Sub "${AWS::AccountId}"
+              Bool:
+                "kms:GrantIsForAWSResource": "true"
+            Action:
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:RevokeGrant'
+            Resource: '*'
+      PendingWindowInDays: 7
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterEncryptionKey"
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    DependsOn: EKSClusterKMSKeyIdSecret
+    Properties:
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      Version: !Ref EKSClusterVersion
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      EncryptionConfig:
+        - Provider:
+            KeyArn: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/{{resolve:secretsmanager:EKSClusterKMSKeyIdSecret${Env}}}'
+          Resources:
+            - "secrets"
+      ResourcesVpcConfig:
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: true
+        SecurityGroupIds:
+          - !Ref EKSClusterSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+          - !Ref PrivateSubnet3 
+  CoreDNS:
+    Type: AWS::EKS::Addon
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref EKSCluster
+  EKSClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for traffic between the EKS Cluster control plane and its nodes
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSClusterSecurityGroup"
+  EKSClusterIngressFromNodesHttps:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow incoming HTTPS traffic (TCP/443) from nodes (for API server)
+      GroupId: !Ref EKSClusterSecurityGroup
+      SourceSecurityGroupId: !Ref EKSNodesSecurityGroup
+      IpProtocol: tcp
+      ToPort: 443
+      FromPort: 443
+  EKSClusterEgressToWorkerNodesKubelet:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: Allow outgoing kubelet traffic (TCP/10250) to nodes
+      GroupId: !Ref EKSClusterSecurityGroup
+      DestinationSecurityGroupId: !Ref EKSNodesSecurityGroup
+      IpProtocol: tcp
+      FromPort: 10250
+      ToPort: 10250
+  EKSClusterEgressToWorkerNodesHttps:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: Allow outgoing HTTPS traffic (TCP/443) to nodes
+      GroupId: !Ref EKSClusterSecurityGroup
+      DestinationSecurityGroupId: !Ref EKSNodesSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+  EKSNodesSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for all the worker nodes
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-EKSNodesSecurityGroup"
+        - Key: !Sub "kubernetes.io/cluster/${EKSCluster}"
+          Value: "owned"
+  EKSNodesIngressFromWorkerNodes:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow all incoming traffic from other worker nodes
+      GroupId: !Ref EKSNodesSecurityGroup
+      SourceSecurityGroupId: !Ref EKSNodesSecurityGroup
+      IpProtocol: "-1"
+  EKSNodesIngressFromControlPlaneKubelet:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow incoming kubelet traffic (TCP/10250) from control plane 
+      GroupId: !Ref EKSNodesSecurityGroup
+      SourceSecurityGroupId: !Ref EKSClusterSecurityGroup
+      IpProtocol: tcp
+      FromPort: 10250
+      ToPort: 10250
+  EKSNodesIngressFromControlPlaneHttps:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow incoming HTTPS traffic (TCP/443) from control plane (for pods running extension API servers)
+      GroupId: !Ref EKSNodesSecurityGroup
+      SourceSecurityGroupId: !Ref EKSClusterSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+  EKSFargateNodes:
+    Type: AWS::EKS::FargateProfile
+    Properties: 
+      ClusterName: !Ref EKSCluster
+      PodExecutionRoleArn: !GetAtt EKSFargatePodExecutionRole.Arn
+      Selectors: 
+        - Namespace: catalog
+        - Namespace: carts
+        - Namespace: checkout
+        - Namespace: orders
+        - Namespace: assets
+      Subnets: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+  EKSNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties: 
+      ClusterName: !Ref EKSCluster
+      NodeRole: !GetAtt EKSNodeRole.Arn
+      InstanceTypes:
+        - t3.large
+      ScalingConfig:
+        MinSize: 2
+        DesiredSize: 3
+        MaxSize: 7
+      Subnets: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3 
+
+# Managed Grafana
+
+# Managed Prometheus
+
+#Dynamo
+
+#Aurora MySQL
+
+Outputs:
+  EKSClusterName:
+    Description: The name of the EKS Cluster
+    Value: !Ref EKSCluster
+  EKSOidcUrl:
+    Description: The OIDC endpoint URL of the EKS Cluster
+    Value: !GetAtt EKSCluster.OpenIdConnectIssuerUrl
+  EKSApiEndpoint:
+    Description: The Kubernetes API server endpoint URL
+    Value: !GetAtt EKSCluster.Endpoint
+
