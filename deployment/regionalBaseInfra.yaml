@@ -53,6 +53,8 @@ Conditions:
 Resources:
   #VPC
   Vpc:
+    DependsOn:
+      - EKSNodeRole
     Type: AWS::EC2::VPC
     Properties:
       #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html
@@ -336,6 +338,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore # Added for Isengard for a clean stack deletion
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -476,7 +479,10 @@ Resources:
           Value: !Sub "${AWS::StackName}-EKSClusterEncryptionKey"
   EKSCluster:
     Type: AWS::EKS::Cluster
-    DependsOn: EKSClusterKMSKeyIdSecret
+    DependsOn:
+      - EKSClusterKMSKeyIdSecret 
+      - EKSNodeRole 
+     # - EKSNodesSecurityGroup
     Properties:
       Logging:
         ClusterLogging:
@@ -611,6 +617,10 @@ Resources:
 # Managed Grafana
 
 # Managed Prometheus
+  APSWorkspace:
+    Condition: isPrimary
+    Type: AWS::APS::Workspace
+  
 
 #Dynamo
 
