@@ -5,10 +5,10 @@ resources:
   - ../../base
 
 configMapGenerator:
-  - name: catalog
+  - name: checkout
     behavior: merge
     envs:
-      - db.properties
+      - catalog.properties
   - name: image-name-config-map
     envs:
       - .env
@@ -23,4 +23,4 @@ replacements:
       - select:
           kind: Deployment
         fieldPaths:
-          - spec.template.spec.containers.[name=catalog].image
+          - spec.template.spec.containers.[name=checkout].image
