@@ -4,6 +4,7 @@ import (
 	"catalog/api"
 	"catalog/config"
 	"catalog/controller"
+	"catalog/repository"
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	api, err := api.NewCatalogAPI()
+	db, err := repository.NewRepository(config.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	api, err := api.NewCatalogAPI(db)
+	//api, err := api.NewCatalogAPI()
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -12,3 +12,8 @@ docker-push:
 deploy-dev:
 	 echo "IMAGE_REPO_WITH_TAG=${IMG}" > ./_infra/kustomize/overlays/dev/.env
 	 kustomize build ./_infra/kustomize/overlays/dev
+
+
+deploy-param:
+	 echo "IMAGE_REPO_WITH_TAG=${IMG}" > ./_infra/kustomize/overlays/dev/.env
+	 kustomize build ./_infra/kustomize/overlays/param
