@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: catalog
+    behavior: merge
+    envs:
+      - db.properties
+  - name: image-name-config-map
+    envs:
+      - .env
+
+replacements:
+  - source:
+      # Replace any matches by the value of environment variable `MY_IMAGE_TAG`.
+      kind: ConfigMap
+      name: image-name-config-map
+      fieldPath: data.IMAGE_REPO_WITH_TAG
+    targets:
+      - select:
+          kind: Deployment
+        fieldPaths:
+          - spec.template.spec.containers.[name=catalog].image

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: checkout
+data:
+  PORT: "8080"
+  ENDPOINTS_ORDERS: "base_db_endpoint"
+  REDIS_URL: "base_db_reader_endpoint"
+  REDIS_READER_URL: "base_db_reader_endpoint"
+  SHIPPING_NAME_PREFIX: "base_db_reader_endpoint"
