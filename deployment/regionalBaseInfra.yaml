@@ -621,6 +621,27 @@ Resources:
     Condition: isPrimary
     Type: AWS::APS::Workspace
   
+#Ecr Repos
+  CheckoutRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'checkout${Env}'
+  CatalogRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'catalog${Env}'
+  CartsRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'carts${Env}'
+  AssetsRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'assets${Env}'
+  OrdersRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'orders${Env}'
 
 #Dynamo
 
