@@ -17,7 +17,7 @@ deploy: test-creds primary_infrastructure secondary_infrastructure
 
 primary_infrastructure:
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=-${ENV}
+	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 standby_infrastructure:
 
 clean:
