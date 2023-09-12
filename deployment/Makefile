@@ -1,15 +1,12 @@
-# Prerequisites:
-# - kubectl
-# - awscli
-
-
-ENV="-dev"
+ENV="-dev0"
 PRIMARY_REGION=us-east-1
 STANDBY_REGION=us-west-2
-EKSCLUSTERVERSION=1.27
+# EKSCLUSTERVERSION=1.27
 
 .DEFAULT_GOAL := test-creds
 MAKE=/usr/bin/make
+
+deploy: test-creds build primary_infrastructure secondary_infrastructure
 
 build:
 
@@ -18,6 +15,9 @@ deploy: test-creds primary_infrastructure secondary_infrastructure
 primary_infrastructure:
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	@aws cloudformation deploy --template ./appRunner.yaml --region ${PRIMARY_REGION} \
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+
 standby_infrastructure:
 
 clean:
@@ -29,5 +29,7 @@ test-creds:
 
 destroy-all:
 	@echo "Removing all cloudformation stacks!!!"
+	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}
