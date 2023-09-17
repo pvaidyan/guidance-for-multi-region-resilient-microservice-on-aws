@@ -1,0 +1,1025 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Applications"
+
+Parameters:
+  Env:
+    Type: String
+    Default: ''
+    Description: String to enable multiple deployments per AWS region
+  PrimaryRegion:
+    Type: String
+    Description: Enter the Primary Region
+    Default: "us-east-1"
+  StandbyRegion:
+    Type: String
+    Description: Enter the Standby Region
+    Default: "us-west-2"
+
+Resources:
+  AppRunnerXRay:
+    Type: AWS::AppRunner::ObservabilityConfiguration
+    Properties:
+      ObservabilityConfigurationName: xray-tracing
+      TraceConfiguration:
+        Vendor: AWSXRAY
+# ToDo UiService
+  UiService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-ui${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-ui:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+                  RuntimeEnvironmentVariables:
+                    -
+                      Name: "ENDPOINTS_CATALOG"
+                      Value: !Sub "https://${CatalogServiceVpcConnection.DomainName}:8080"
+                    -
+                      Name: "ENDPOINTS_CARTS"
+                      Value: !Sub "https://${CartsServiceVpcConnection.DomainName}:8080"
+                    -
+                      Name: "ENDPOINTS_CHECKOUT"
+                      Value: !Sub "https://${CheckoutServiceVpcConnection.DomainName}:8080"
+                    -
+                      Name: "ENDPOINTS_ORDERS"
+                      Value: !Sub "https://${OrdersServiceVpcConnection.DomainName}:8080"
+                    -
+                      Name: "ENDPOINTS_ASSETS"
+                      Value: !Sub "https://${AssetsServiceVpcConnection.DomainName}:8080"
+              ImageRepositoryType: "ECR_PUBLIC"
+          AutoDeploymentsEnabled: false
+      InstanceConfiguration: 
+          Cpu: "1024"
+          Memory: "2048"
+      HealthCheckConfiguration: 
+          Protocol: "TCP"
+          Path: "/"
+          Interval: 5
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 5
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: true
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt UiServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  # UiServiceVpcConnection:
+  #   Type: AWS::AppRunner::VpcIngressConnection
+  #   Properties:
+  #     IngressVpcConfiguration:
+  #       VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+  #       VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+  #     ServiceArn: !Ref UiService
+  UiServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgUi
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  AssetsService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-assets${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-assets:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+              ImageRepositoryType: "ECR_PUBLIC"
+          AutoDeploymentsEnabled: false
+      InstanceConfiguration: 
+          Cpu: "1024"
+          Memory: "2048"
+          InstanceRoleArn: !GetAtt AssetsRole.Arn
+      HealthCheckConfiguration: 
+          Protocol: "TCP"
+          Path: "/"
+          Interval: 5
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 5
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: false
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt AssetsServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  AssetsServiceVpcConnection:
+    Type: AWS::AppRunner::VpcIngressConnection
+    Properties:
+      IngressVpcConfiguration:
+        VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+        VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+      ServiceArn: !Ref AssetsService
+  AssetsServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgAssets
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  CatalogService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-catalog${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "811659366103.dkr.ecr.us-east-1.amazonaws.com/catalog-dev0:latest"
+              # ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-catalog:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+                  RuntimeEnvironmentSecrets:
+                    -
+                      Name: "DB_ENDPOINT"
+                      Value: !Sub "${CatalogSecret}:host::"
+                    -
+                      Name: "DB_READ_ENDPOINT"
+                      Value: !Sub "${CatalogSecret}:host::"
+                    -
+                      Name: "DB_USER"
+                      Value: !Sub "${CatalogSecret}:username::"
+                    -
+                      Name: "DB_PASSWORD"
+                      Value: !Sub "${CatalogSecret}:password::"
+                  RuntimeEnvironmentVariables: 
+                    - 
+                      Name: "DB_NAME"
+                      Value: "catalog"
+              # ImageRepositoryType: "ECR_PUBLIC"
+              ImageRepositoryType: "ECR"
+          AutoDeploymentsEnabled: false
+          AuthenticationConfiguration: 
+            AccessRoleArn: !GetAtt EcrRole.Arn
+      InstanceConfiguration: 
+          Cpu: "1024"
+          Memory: "2048"
+          InstanceRoleArn: !GetAtt CatalogRole.Arn
+      HealthCheckConfiguration: 
+          Protocol: "TCP"
+          Path: "/"
+          Interval: 5
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 5
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: false
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt CatalogServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  CatalogServiceVpcConnection:
+    Type: AWS::AppRunner::VpcIngressConnection
+    Properties:
+      IngressVpcConfiguration:
+        VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+        VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+      ServiceArn: !Ref CatalogService
+  CatalogServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgCatalog
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  CheckoutService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-checkout${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-checkout:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+                  RuntimeEnvironmentVariables: 
+                    - 
+                      Name: "ENDPOINTS_ORDERS"
+                      Value: !GetAtt OrdersServiceVpcConnection.DomainName
+                      # Value: !GetAtt OrdersService.ServiceId
+                    - 
+                      Name: "REDIS_URL"
+                      Value: !Sub "redis://CheckoutEcCluster.RedisEndpoint.Address/CheckoutEcCluster.RedisEndpoint.Port"
+              ImageRepositoryType: "ECR_PUBLIC"
+          AutoDeploymentsEnabled: false
+      InstanceConfiguration: 
+          Cpu: "1024"
+          Memory: "2048"
+          InstanceRoleArn: !GetAtt CheckoutRole.Arn
+      HealthCheckConfiguration: 
+          Protocol: "TCP"
+          Path: "/"
+          Interval: 5
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 5
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: false
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt CheckoutServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  CheckoutServiceVpcConnection:
+    Type: AWS::AppRunner::VpcIngressConnection
+    Properties:
+      IngressVpcConfiguration:
+        VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+        VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+      ServiceArn: !Ref CheckoutService
+  CheckoutServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgCheckout
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  OrdersService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-orders${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-orders:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+                  RuntimeEnvironmentSecrets:
+                  -
+                    Name: "SPRING_DATASOURCE_WRITER_USERNAME"
+                    Value: !Sub "${OrdersSecret}:username::"
+                  -
+                    Name: "SPRING_DATASOURCE_READER_USERNAME"
+                    Value: !Sub "${OrdersSecret}:username::"
+                  - 
+                    Name: "SPRING_RABBITMQ_USER"
+                    Value: !Sub "${MqSecret}:username::"
+                  -
+                    Name: "SPRING_DATASOURCE_WRITER_URL"
+                    Value: !Sub "${OrdersSecret}:host::"
+                  -
+                    Name: "SPRING_DATASOURCE_READER_URL"
+                    Value: !Sub "${OrdersSecret}:host::"
+                  -
+                    Name: "SPRING_RABBITMQ_ADDRESSES"
+                    Value: !Sub "${MqSecret}:host::"
+                  -
+                    Name: "SPRING_DATASOURCE_WRITER_PASSWORD"
+                    Value: !Sub "${OrdersSecret}:password::"
+                  -
+                    Name: "SPRING_DATASOURCE_READER_PASSWORD"
+                    Value: !Sub "${OrdersSecret}:password::"
+                  - 
+                    Name: "SPRING_RABBITMQ_PASSWORD"
+                    Value: !Sub "${MqSecret}:password::"
+              ImageRepositoryType: "ECR_PUBLIC"
+          AutoDeploymentsEnabled: false
+      InstanceConfiguration: 
+          Cpu: "2048"
+          Memory: "4096"
+          InstanceRoleArn: !GetAtt OrdersRole.Arn
+      HealthCheckConfiguration: 
+          Protocol: "HTTP"
+          Path: "/actuator"
+          Interval: 20
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 20
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: false
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt OrdersServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  OrdersServiceVpcConnection:
+    Type: AWS::AppRunner::VpcIngressConnection
+    Properties:
+      IngressVpcConfiguration:
+        VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+        VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+      ServiceArn: !Ref OrdersService
+  OrdersServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgOrders
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  CartService:
+    Type: "AWS::AppRunner::Service"
+    Properties:
+      ServiceName: !Sub "retail-store-ar-carts${Env}"
+      SourceConfiguration: 
+          ImageRepository: 
+              ImageIdentifier: "public.ecr.aws/aws-containers/retail-store-sample-cart:0.5.0"
+              ImageConfiguration: 
+                  Port: "8080"
+                  RuntimeEnvironmentVariables: 
+                    - 
+                      Name: "CARTS_DYNAMODB_TABLENAME"
+                      Value: !Ref CartsTable
+              ImageRepositoryType: "ECR_PUBLIC"
+          AutoDeploymentsEnabled: false
+      InstanceConfiguration: 
+          Cpu: "1024"
+          Memory: "2048"
+          InstanceRoleArn: !GetAtt CartsRole.Arn
+      HealthCheckConfiguration: 
+          Protocol: "TCP"
+          Path: "/"
+          Interval: 5
+          Timeout: 2
+          HealthyThreshold: 1
+          UnhealthyThreshold: 5
+      NetworkConfiguration:
+        IngressConfiguration:
+          IsPubliclyAccessible: false
+        EgressConfiguration:
+          EgressType: VPC
+          VpcConnectorArn: !GetAtt CartsServiceVpcConnector.VpcConnectorArn
+      ObservabilityConfiguration:
+        ObservabilityEnabled: true
+        ObservabilityConfigurationArn: !GetAtt AppRunnerXRay.ObservabilityConfigurationArn
+  CartsServiceVpcConnection:
+    Type: AWS::AppRunner::VpcIngressConnection
+    Properties:
+      IngressVpcConfiguration:
+        VpcEndpointId: !Sub "{{resolve:ssm:AppRunnerVpcEndpointId${Env}}}"
+        VpcId: !Sub "{{resolve:ssm:VpcId${Env}}}"
+      ServiceArn: !Ref CartService
+  CartsServiceVpcConnector:
+    Type: AWS::AppRunner::VpcConnector
+    Properties: 
+      SecurityGroups: 
+        - !Ref sgCarts
+      Subnets: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+
+# Secrets
+  OrdersDbPassword:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'retail-store-ar-orders-db-password${Env}'
+      KmsKeyId: !Ref KmsKey
+      GenerateSecretString: 
+        ExcludePunctuation: true
+  OrdersSecret:
+    DependsOn: OrdersDbPassword
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub "retail-store-ar-orders-db${Env}"
+      KmsKeyId: !Ref KmsKey
+      SecretString: !Sub "{\"host\":\"jdbc:mariadb://${OrdersDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}/orders\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-orders-db-password${Env}}}\",\"username\":\"root\"}"
+  MqSecret:
+    DependsOn: 
+      - MqPassword 
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'retail-store-ar-mq${Env}'
+      KmsKeyId: !Ref KmsKey
+      SecretString: !Sub "{\"host\":\"amqp+ssl://${OrdersMqBroker}-1.mq.${AWS::Region}.amazonaws.com:5671\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-mq-password${Env}}}\",\"username\":\"default_mq_user\"}"
+  MqPassword:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'retail-store-ar-mq-password${Env}'
+      KmsKeyId: !Ref KmsKey
+      GenerateSecretString: 
+        ExcludePunctuation: true
+  CatalogDbPassword:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'retail-store-ar-catalog-db-password${Env}'
+      KmsKeyId: !Ref KmsKey
+      GenerateSecretString: 
+        ExcludePunctuation: true
+  CatalogSecret:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'retail-store-ar-catalog-db${Env}'
+      KmsKeyId: !Ref KmsKey
+      SecretString: !Sub "{\"host\":\"${CatalogDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-catalog-db-password${Env}}}\",\"username\":\"root\"}"
+
+# Security Groups   
+  sgUi:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for UI component"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-ui"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgCatalog:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for catalog component"
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-catalog"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupIngress: 
+        - 
+          CidrIp: !Sub '{{resolve:ssm:VpcCidrBlock${Env}}}'
+          Description: "Allow 8080 ingress"
+          FromPort: 8080
+          IpProtocol: "tcp"
+          ToPort: 8080
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgCheckout:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for checkout component"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-checkout"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgRedis:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for Elasticache Redis"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-checkout-redis"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupIngress: 
+        - 
+          SourceSecurityGroupId: !Ref sgCheckout
+          SourceSecurityGroupOwnerId: !Ref AWS::AccountId
+          Description: "Selectively allow inbound traffic"
+          FromPort: 6379
+          IpProtocol: "tcp"
+          ToPort: 6379
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+        - 
+          CidrIpv6: "::/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgAssets:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for assets component"
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-catalog"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgCatalogDB:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Control traffic to/from RDS Aurora retail-store-ar-catalog"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-catalog-db"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupIngress: 
+        - 
+          SourceSecurityGroupId: !Ref sgCatalog
+          SourceSecurityGroupOwnerId: !Ref AWS::AccountId
+          Description: "From allowed SGs"
+          FromPort: 3306
+          IpProtocol: "tcp"
+          ToPort: 3306
+  sgOrders:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for orders component"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-orders"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+  sgOrdersDB:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Control traffic to/from RDS Aurora retail-store-ar-orders"
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-orders-db"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupIngress: 
+        - 
+          SourceSecurityGroupId: !Ref sgOrders
+          SourceSecurityGroupOwnerId: !Ref AWS::AccountId
+          Description: "From allowed SGs"
+          FromPort: 3306
+          IpProtocol: "tcp"
+          ToPort: 3306
+  sgMq:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "security group for MQ Broker"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-orders-mq-broker"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupIngress: 
+        - 
+          SourceSecurityGroupId: !Ref sgOrders
+          SourceSecurityGroupOwnerId: !Ref AWS::AccountId
+          Description: "Allow all ports"
+          FromPort: 0
+          IpProtocol: "tcp"
+          ToPort: 65535
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+        - 
+          CidrIpv6: "::/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+
+  sgCarts:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for carts component"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-carts"
+      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
+    
+  KmsKey:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Enabled: true
+      Description: "retail-store-ar CMK"
+      KeyUsage: "ENCRYPT_DECRYPT"
+      KeyPolicy: !Sub |
+          {
+            "Version" : "2012-10-17",
+            "Id" : "key-default-1",
+            "Statement" : [ {
+              "Sid" : "Enable IAM User Permissions",
+              "Effect" : "Allow",
+              "Principal" : {
+                "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
+              },
+              "Action" : "kms:*",
+              "Resource" : "*"
+            } ]
+          }
+      KeySpec: "SYMMETRIC_DEFAULT"
+      MultiRegion: false
+  
+  EcrRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+        Path: "/service-role/"
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"build.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        MaxSessionDuration: 3600
+        ManagedPolicyArns: 
+          - "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
+        Description: "This role gives App Runner permission to access ECR"
+
+  OrdersRole:
+    DependsOn: MqSecret
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+
+  AssetsRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"InstanceAssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+  CatalogRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+  CartsRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"InstanceAssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      ManagedPolicyArns: 
+        - !GetAtt CartsPolicy.PolicyArn
+      Tags: 
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+  CartsPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+        PolicyDocument: !Sub "{\"Statement\":[{\"Action\":\"dynamodb:*\",\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CartsTable}\",\"arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CartsTable}/index/*\"],\"Sid\":\"AllAPIActionsOnCart\"}],\"Version\":\"2012-10-17\"}"
+  CheckoutRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"InstanceAssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+  UiRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"InstanceAssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"tasks.apprunner.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+  CatalogPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: CatalogPolicy
+      PolicyDocument: !Sub "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"secretsmanager:GetSecretValue\",\"kms:Decrypt*\"],\"Effect\":\"Allow\",\"Resource\":[\"${CatalogSecret}\",\"arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}\"]}]}"
+      Roles: 
+        - !Ref CatalogRole
+
+  OrdersPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: OrdersPolicy
+      PolicyDocument: !Sub "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"secretsmanager:GetSecretValue\",\"kms:Decrypt*\"],\"Effect\":\"Allow\",\"Resource\":[\"${OrdersSecret}\",\"${MqSecret}\",\"arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}\"]}]}"
+      Roles: 
+        - !Ref OrdersRole
+
+  OrdersMqBroker:
+    Type: "AWS::AmazonMQ::Broker"
+    Properties:
+      AutoMinorVersionUpgrade: false
+      BrokerName: !Sub "retail-store-arordersmq-broker${Env}"
+      DeploymentMode: "SINGLE_INSTANCE"
+      EngineType: "RabbitMQ"
+      EngineVersion: "3.10.10"
+      HostInstanceType: "mq.t3.micro"
+      PubliclyAccessible: false
+      StorageType: "ebs"
+      AuthenticationStrategy: "simple"
+      MaintenanceWindowStartTime: 
+          DayOfWeek: "SUNDAY"
+          TimeOfDay: "03:00"
+          TimeZone: "UTC"
+      Logs: 
+          General: true
+      SecurityGroups: 
+        - !Ref sgMq
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-arordersmq-broker"
+      EncryptionOptions: 
+          UseAwsOwnedKey: true
+      Users:
+        - 
+          Username: mq
+          Password: !Sub '{{resolve:secretsmanager:${MqPassword}}}'
+
+  # sgCatalogDB:
+  #   Type: "AWS::EC2::SecurityGroup"
+  #   Properties:
+  #     GroupDescription: "Security group for catalog component"
+  #     GroupName: !Sub 'retail-store-ar-catalog${Env}'
+  #     Tags: 
+  #       - 
+  #         Key: "created-by"
+  #         Value: "retail-store-sample-app"
+  #       - 
+  #         Key: "environment-name"
+  #         Value: "retail-store-ar"
+  #     VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+  #     SecurityGroupIngress: 
+  #       - 
+  #         CidrIp: !Sub '{{resolve:ssm:VpcCidrBlock${Env}}}'
+  #         Description: "Allow 3306 ingress"
+  #         FromPort: 3306
+  #         IpProtocol: "tcp"
+  #         ToPort: 3306
+  #     SecurityGroupEgress: 
+  #       - 
+  #         CidrIp: "0.0.0.0/0"
+  #         Description: "Allow all egress"
+  #         IpProtocol: "-1"
+
+  CatalogDbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-catalog"
+      # DBSubnetGroupName: !Sub 'retail-store-ar-catalog${Env}'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+
+  OrdersDbSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-orders"
+      # DBSubnetGroupName: !Sub 'retail-store-ar-orders${Env}'
+      SubnetIds: 
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+
+  CatalogDB:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      BackupRetentionPeriod: 7
+      DatabaseName: catalog
+      DBClusterIdentifier: !Sub 'retail-store-ar-catalog${Env}'
+      DBSubnetGroupName: !Ref CatalogDbSubnetGroup
+      Engine: "aurora-mysql"
+      Port: 3306
+      MasterUsername: "root"
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${CatalogDbPassword}}}'
+      PreferredBackupWindow: "02:00-03:00"
+      PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
+      VpcSecurityGroupIds: 
+        - !Ref sgCatalogDB
+      StorageEncrypted: true
+      KmsKeyId: !Ref KmsKey
+      EnableIAMDatabaseAuthentication: false
+      DeletionProtection: false
+      EnableHttpEndpoint: false
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: 1
+        MaxCapacity: 8
+  CatalogDbInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: "db.serverless"
+      Engine: "aurora-mysql"
+      DBClusterIdentifier: !Ref CatalogDB
+
+  OrdersDB:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      BackupRetentionPeriod: 7
+      DatabaseName: orders      
+      DBClusterIdentifier: !Sub 'retail-store-ar-orders${Env}'
+      DBSubnetGroupName: !Ref OrdersDbSubnetGroup
+      Engine: "aurora-mysql"
+      Port: 3306
+      MasterUsername: "root"
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${OrdersDbPassword}}}'
+      PreferredBackupWindow: "02:00-03:00"
+      PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
+      VpcSecurityGroupIds: 
+        - !Ref sgOrdersDB
+      StorageEncrypted: true
+      KmsKeyId: !Ref KmsKey
+      EnableIAMDatabaseAuthentication: false
+      DeletionProtection: false
+      EnableHttpEndpoint: false
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: 1
+        MaxCapacity: 8
+  OrdersDbInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: "db.serverless"
+      Engine: "aurora-mysql"
+      DBClusterIdentifier: !Ref OrdersDB
+    
+  CartsTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      AttributeDefinitions: 
+        - 
+          AttributeName: "customerId"
+          AttributeType: "S"
+        - 
+          AttributeName: "id"
+          AttributeType: "S"
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: !Sub "retail-store-ar-carts${Env}"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-carts"
+      KeySchema: 
+        - 
+          AttributeName: "id"
+          KeyType: "HASH"
+      GlobalSecondaryIndexes: 
+        - 
+          IndexName: "idx_global_customerId"
+          KeySchema: 
+            - 
+              AttributeName: "customerId"
+              KeyType: "HASH"
+          Projection: 
+              ProjectionType: "ALL"
+          ProvisionedThroughput: 
+              ReadCapacityUnits: 0
+              WriteCapacityUnits: 0
+
+  CheckoutEcCluster:
+    Type: "AWS::ElastiCache::CacheCluster"
+    Properties:
+      CacheNodeType: "cache.t3.micro"
+      Engine: "redis"
+      EngineVersion: "4.0.10"
+      NumCacheNodes: 1
+      PreferredMaintenanceWindow: "wed:03:00-wed:04:00"
+      CacheParameterGroupName: !Ref CheckoutEcParameterGroup
+      CacheSubnetGroupName: !Ref CheckoutEcSubnetGroup
+      AutoMinorVersionUpgrade: true
+      VpcSecurityGroupIds: 
+        - !Ref sgRedis
+      SnapshotRetentionLimit: 0
+      SnapshotWindow: "06:30-07:30"
+      Tags: 
+        - 
+          Key: "environment-name"
+          Value: "retail-store-ar"
+        - 
+          Key: "created-by"
+          Value: "retail-store-sample-app"
+        - 
+          Key: "Name"
+          Value: "retail-store-ar-checkout"
+  CheckoutEcSubnetGroup:
+      Type: "AWS::ElastiCache::SubnetGroup"
+      Properties:
+        Description: "Elasticache subnet group for retail-store-ar-checkout"
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  CheckoutEcParameterGroup:
+    Type: "AWS::ElastiCache::ParameterGroup"
+    Properties:
+      CacheParameterGroupFamily: "redis4.0"
+      Description: "Elasticache parameter group for retail-store-ar-checkout"
