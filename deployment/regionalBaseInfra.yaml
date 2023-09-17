@@ -220,32 +220,32 @@ Resources:
         - !Ref PrivateSubnet3
       SecurityGroupIds:
         - !Ref VPCEndpointSecurityGroup
-  # VPCEndpointForEC2:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Properties:
-  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2'
-  #     VpcEndpointType: Interface
-  #     VpcId: !Ref Vpc
-  #     PrivateDnsEnabled: true
-  #     SubnetIds:
-  #       - !Ref PrivateSubnet1
-  #       - !Ref PrivateSubnet2
-  #       - !Ref PrivateSubnet3
-  #     SecurityGroupIds:
-  #       - !Ref VPCEndpointSecurityGroup
-  # VPCEndpointForELB:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Properties:
-  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticloadbalancing'
-  #     VpcEndpointType: Interface
-  #     VpcId: !Ref Vpc
-  #     PrivateDnsEnabled: true
-  #     SubnetIds:
-  #       - !Ref PrivateSubnet1
-  #       - !Ref PrivateSubnet2
-  #       - !Ref PrivateSubnet3
-  #     SecurityGroupIds:
-        # - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForEC2Messages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2messages'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForSSM:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
   VPCEndpointForCloudWatchLogs:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -259,19 +259,19 @@ Resources:
         - !Ref PrivateSubnet3
       SecurityGroupIds:
         - !Ref VPCEndpointSecurityGroup
-  # VPCEndpointForSTS:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Properties:
-  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
-  #     VpcEndpointType: Interface
-  #     VpcId: !Ref Vpc
-  #     PrivateDnsEnabled: true
-  #     SubnetIds:
-  #       - !Ref PrivateSubnet1
-  #       - !Ref PrivateSubnet2
-  #       - !Ref PrivateSubnet3
-  #     SecurityGroupIds:
-  #       - !Ref VPCEndpointSecurityGroup
+  VPCEndpointForSsmMessages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssmmessages'
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
   VPCEndpointForECRApi:
     Type: AWS::EC2::VPCEndpoint
     Properties:

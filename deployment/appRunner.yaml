@@ -35,19 +35,19 @@ Resources:
                   RuntimeEnvironmentVariables:
                     -
                       Name: "ENDPOINTS_CATALOG"
-                      Value: !Sub "https://${CatalogServiceVpcConnection.DomainName}:8080"
+                      Value: !Sub "https://${CatalogServiceVpcConnection.DomainName}"
                     -
                       Name: "ENDPOINTS_CARTS"
-                      Value: !Sub "https://${CartsServiceVpcConnection.DomainName}:8080"
+                      Value: !Sub "https://${CartsServiceVpcConnection.DomainName}"
                     -
                       Name: "ENDPOINTS_CHECKOUT"
-                      Value: !Sub "https://${CheckoutServiceVpcConnection.DomainName}:8080"
+                      Value: !Sub "https://${CheckoutServiceVpcConnection.DomainName}"
                     -
                       Name: "ENDPOINTS_ORDERS"
-                      Value: !Sub "https://${OrdersServiceVpcConnection.DomainName}:8080"
+                      Value: !Sub "https://${OrdersServiceVpcConnection.DomainName}"
                     -
                       Name: "ENDPOINTS_ASSETS"
-                      Value: !Sub "https://${AssetsServiceVpcConnection.DomainName}:8080"
+                      Value: !Sub "https://${AssetsServiceVpcConnection.DomainName}"
               ImageRepositoryType: "ECR_PUBLIC"
           AutoDeploymentsEnabled: false
       InstanceConfiguration: 
@@ -1023,3 +1023,19 @@ Resources:
     Properties:
       CacheParameterGroupFamily: "redis4.0"
       Description: "Elasticache parameter group for retail-store-ar-checkout"
+
+Outputs:
+  Catalog:  
+    Value: !Sub "https://${CatalogServiceVpcConnection.DomainName}"
+    
+  Carts:
+    Value: !Sub "https://${CartsServiceVpcConnection.DomainName}"
+    
+  Checkout:
+    Value: !Sub "https://${CheckoutServiceVpcConnection.DomainName}"
+    
+  Orders:
+    Value: !Sub "https://${OrdersServiceVpcConnection.DomainName}"
+  
+  Assets:
+    Value: !Sub "https://${AssetsServiceVpcConnection.DomainName}"
