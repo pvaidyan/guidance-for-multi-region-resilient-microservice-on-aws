@@ -10,10 +10,6 @@ Parameters:
     Type: String
     Description: The prefix to be used for resources created by this template.
     Default: mr-app
-  # EKSClusterVersion:
-  #   Type: String
-  #   Description: Tke Kubernetes version of the created EKS cluster
-  #   Default: 1.27
   PrimaryRegion:
     Type: String
     Description: Enter the Primary Region
@@ -30,6 +26,9 @@ Mappings:
       "PrivateCidrBlock1": 10.1.0.0/20
       "PrivateCidrBlock2": 10.1.16.0/20
       "PrivateCidrBlock3": 10.1.32.0/20
+      "PublicCidrBlock1": 10.1.48.0/20
+      "PublicCidrBlock2": 10.1.64.0/20
+      "PublicCidrBlock3": 10.1.80.0/20
       "AvailabilityZoneId1": use1-az1
       "AvailabilityZoneId2": use1-az4
       "AvailabilityZoneId3": use1-az6
@@ -38,6 +37,9 @@ Mappings:
       "PrivateCidrBlock1": 10.2.0.0/20
       "PrivateCidrBlock2": 10.2.16.0/20
       "PrivateCidrBlock3": 10.2.32.0/20
+      "PublicCidrBlock1": 10.2.48.0/20
+      "PublicCidrBlock2": 10.2.64.0/20
+      "PublicCidrBlock3": 10.2.80.0/20
       "AvailabilityZoneId1": usw2-az1
       "AvailabilityZoneId2": usw2-az2
       "AvailabilityZoneId3": usw2-az3
@@ -45,7 +47,7 @@ Mappings:
 Conditions:
   isPrimary: !Equals
     - !Ref AWS::Region
-    - us-east-1
+    - us-east-2
   isStandby: !Equals
     - !Ref AWS::Region
     - us-west-2
@@ -54,11 +56,79 @@ Resources:
   #VPC
   Vpc:
     Type: AWS::EC2::VPC
-    Properties:
-      #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-vpc.html
+    Properties: 
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", "VPCCidrBlock"]
       EnableDnsSupport: true
       EnableDnsHostnames: true
+  Igw:
+    Type: AWS::EC2::InternetGateway
+  IgwAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref Igw
+      VpcId: !Ref Vpc
+
+  prvRoute1:
+    DependsOn: Igw
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref natGW1
+  natEip1:
+    Type: AWS::EC2::EIP
+  natGW1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref publicSubnet1
+      AllocationId: !GetAtt natEip1.AllocationId
+  pubRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: "Name"
+          Value: "Public Route Table"
+  pubRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref pubRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Igw
+  pubSnRta1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref pubRouteTable
+      SubnetId: !Ref publicSubnet1
+  publicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId1]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock1] 
+  pubSnRta2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref pubRouteTable
+      SubnetId: !Ref publicSubnet2
+  publicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId2]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock2]
+  pubSnRta3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref pubRouteTable
+      SubnetId: !Ref publicSubnet3
+  publicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId3]
+      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock3]    
+
   FlowLogRole:
       Properties:
         AssumeRolePolicyDocument:
@@ -95,7 +165,6 @@ Resources:
       TrafficType: ALL
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
-    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId1]
@@ -114,7 +183,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet1
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
-    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId2]
@@ -133,7 +201,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet2
   PrivateSubnet3:
     Type: AWS::EC2::Subnet
-    #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnet.html
     Properties:
       VpcId: !Ref Vpc
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId3]
@@ -154,163 +221,6 @@ Resources:
     Type:  AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref Vpc
-  VPCEndpointSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref Vpc
-      GroupDescription: "Security Group for VPC Endpoint"
-      SecurityGroupIngress:
-        - FromPort: 443
-          ToPort: 443
-          IpProtocol: tcp
-          CidrIp: !GetAtt Vpc.CidrBlock
-          Description: "Allows inbound traffic for HTTPS"
-  AppRunnerIngressSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref Vpc
-      GroupDescription: "Security Group for VPC Endpoint"
-      SecurityGroupIngress:
-        - 
-          CidrIp: "0.0.0.0/0"
-          FromPort: 8080
-          IpProtocol: "tcp"
-          ToPort: 8080
-          Description: "Allows inbound traffic for AppRunner Apps"
-  VPCEndpointForAppRunner:
-    Type: "AWS::EC2::VPCEndpoint"
-    Properties:
-        VpcEndpointType: "Interface"
-        VpcId: !Ref Vpc
-        ServiceName: !Sub "com.amazonaws.${AWS::Region}.apprunner.requests"
-        SubnetIds: 
-          - !Ref PrivateSubnet1
-          - !Ref PrivateSubnet2
-          - !Ref PrivateSubnet3
-        PrivateDnsEnabled: false
-        SecurityGroupIds: 
-          - !Ref AppRunnerIngressSecurityGroup
-  
-  VPCEndpointForS3:            
-    Type: AWS::EC2::VPCEndpoint
-    Properties: 
-      RouteTableIds: 
-        - !Ref PrivateRouteTable
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
-      VpcEndpointType: Gateway
-      VpcId: !Ref Vpc
-  VPCEndpointForDynamoDB:            
-    Type: AWS::EC2::VPCEndpoint
-    Properties: 
-      RouteTableIds: 
-        - !Ref PrivateRouteTable
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
-      VpcEndpointType: Gateway
-      VpcId: !Ref Vpc
-  VPCEndpointForSecretsManager:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForEC2Messages:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2messages'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForSSM:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForCloudWatchLogs:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForSsmMessages:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssmmessages'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForECRApi:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForECRDkr:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
-  VPCEndpointForXRay:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.xray'
-      VpcEndpointType: Interface
-      VpcId: !Ref Vpc
-      PrivateDnsEnabled: true
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet3
-      SecurityGroupIds:
-        - !Ref VPCEndpointSecurityGroup
   
 #Ecr Repos
   CheckoutRepo:
@@ -347,12 +257,6 @@ Resources:
       Type: String
       Name: !Sub VpcCidrBlock${Env}
       Value: !GetAtt Vpc.CidrBlock
-  AppRunnerVpcEndpointParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub AppRunnerVpcEndpointId${Env}
-      Value: !Ref VPCEndpointForAppRunner
   Subnet1Param:
     Type: AWS::SSM::Parameter
     Properties: 
@@ -371,18 +275,22 @@ Resources:
       Type: String
       Name: !Sub Subnet3${Env}
       Value: !Ref PrivateSubnet3
-#Dynamo
-
-#Aurora MySQL
-
-# Outputs:
-  # EKSClusterName:
-  #   Description: The name of the EKS Cluster
-  #   Value: !Ref EKSCluster
-  # EKSOidcUrl:
-  #   Description: The OIDC endpoint URL of the EKS Cluster
-  #   Value: !GetAtt EKSCluster.OpenIdConnectIssuerUrl
-  # EKSApiEndpoint:
-  #   Description: The Kubernetes API server endpoint URL
-  #   Value: !GetAtt EKSCluster.Endpoint
+  PubSubnet1Param:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Type: String
+      Name: !Sub PubSubnet1${Env}
+      Value: !Ref publicSubnet1
+  PubSubnet2Param:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Type: String
+      Name: !Sub PubSubnet2${Env}
+      Value: !Ref publicSubnet2
+  PubSubnet3Param:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Type: String
+      Name: !Sub PubSubnet3${Env}
+      Value: !Ref publicSubnet3
 

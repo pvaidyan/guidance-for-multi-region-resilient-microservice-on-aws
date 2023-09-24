@@ -13,28 +13,44 @@ DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
 
-deploy: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
+deploy-apprunner: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
+deploy-ecs: test-creds primary_infrastructure primary_ecs standby_infrastructure standby_ecs
+deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
-build-catalog: primary_infrastructure standby_infrastructure
+build-catalog-primary: primary_infrastructure
 	@cd ../source/catalog/; docker build -t catalog${ENV} .
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
 	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
 
+build-catalog-standby: standby_infrastructure
+	@cd ../source/catalog/; docker build -t catalog${ENV} .
+	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
+	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
+
 primary_infrastructure:
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_apps: primary_infrastructure build-catalog
+primary_apps: primary_infrastructure build-catalog-primary
 	@aws cloudformation deploy --template ./appRunner.yaml --region ${PRIMARY_REGION} \
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+
+primary_ecs: primary_infrastructure build-catalog-primary
+	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 standby_infrastructure:
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_apps: standby_infrastructure build-catalog
+standby_apps: standby_infrastructure build-catalog-standby
 	@aws cloudformation deploy --template ./appRunner.yaml --region ${STANDBY_REGION} \
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+
+standby_ecs: standby_infrastructure build-catalog-standby
+	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 clean:
