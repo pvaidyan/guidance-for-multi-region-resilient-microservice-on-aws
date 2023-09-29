@@ -840,32 +840,6 @@ Resources:
           Username: mq
           Password: !Sub '{{resolve:secretsmanager:${MqPassword}}}'
 
-  # sgCatalogDB:
-  #   Type: "AWS::EC2::SecurityGroup"
-  #   Properties:
-  #     GroupDescription: "Security group for catalog component"
-  #     GroupName: !Sub 'retail-store-ar-catalog${Env}'
-  #     Tags: 
-  #       - 
-  #         Key: "created-by"
-  #         Value: "retail-store-sample-app"
-  #       - 
-  #         Key: "environment-name"
-  #         Value: "retail-store-ar"
-  #     VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
-  #     SecurityGroupIngress: 
-  #       - 
-  #         CidrIp: !Sub '{{resolve:ssm:VpcCidrBlock${Env}}}'
-  #         Description: "Allow 3306 ingress"
-  #         FromPort: 3306
-  #         IpProtocol: "tcp"
-  #         ToPort: 3306
-  #     SecurityGroupEgress: 
-  #       - 
-  #         CidrIp: "0.0.0.0/0"
-  #         Description: "Allow all egress"
-  #         IpProtocol: "-1"
-
   CatalogDbSubnetGroup:
     Type: "AWS::RDS::DBSubnetGroup"
     Properties:

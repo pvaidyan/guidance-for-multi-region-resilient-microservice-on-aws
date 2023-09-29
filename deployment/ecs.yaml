@@ -15,6 +15,14 @@ Parameters:
     Description: Enter the Standby Region
     Default: "us-west-2"
 
+Conditions:
+  isPrimary: !Equals
+    - !Ref AWS::Region
+    - us-east-1
+  isStandby: !Equals
+    - !Ref AWS::Region
+    - us-west-2
+
 Resources:
   #Backends
   OrdersMqBroker:
@@ -1069,3 +1077,14 @@ Resources:
             - !Sub '{{resolve:ssm:Subnet1${Env}}}'
             - !Sub '{{resolve:ssm:Subnet2${Env}}}'
             - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+
+#Secrets
+  AlbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub Alb-${AWS::Region}${Env}
+      Description: "Alb Info"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
+      ReplicaRegions:
+        - Region: !If [isPrimary, us-west-2, us-east-1]

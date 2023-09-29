@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'Global Routing - Stack needs to be managed from US-West-2'
+
+Parameters:
+  Env:
+    Type: String
+    Default: ''
+    Description: String to enable multiple deployments per AWS region
+  PrimaryRegion:
+    Type: String
+    Description: Enter the Primary Region
+    Default: "us-east-1"
+  StandbyRegion:
+    Type: String
+    Description: Enter the Standby Region
+    Default: "us-west-2"
+  DomainName:
+    Type: String
+    Description: The name of the domain that you want created as a private hosted zone in Route53
+    Default: demo.io
+
+Resources:
+  ##### Application Recovery Controller#######
+  ArcCluster:
+    Type: AWS::Route53RecoveryControl::Cluster
+    Properties:
+      Name: !Sub retail-store-ar-ArcCluster${Env}
+  ArcControlPanel:
+    Type: AWS::Route53RecoveryControl::ControlPanel
+    Properties:
+      ClusterArn: !GetAtt ArcCluster.ClusterArn
+      Name: !Sub retail-store-ar-ArcControlPanel${Env}
+  ArcRoutingControlPrimary:
+    Type: AWS::Route53RecoveryControl::RoutingControl
+    Properties:
+      ClusterArn: !GetAtt ArcCluster.ClusterArn
+      ControlPanelArn: !GetAtt ArcControlPanel.ControlPanelArn
+      Name: !Sub retail-store-ar-ArcRoutingControlPrimary${Env}
+  ArcRoutingControlStandby:
+    Type: AWS::Route53RecoveryControl::RoutingControl
+    Properties:
+      ClusterArn: !GetAtt ArcCluster.ClusterArn
+      ControlPanelArn: !GetAtt ArcControlPanel.ControlPanelArn
+      Name: !Sub retail-store-ar-ArcRoutingControlStandby${Env}
+  
+  ArcHealthCheckPrimary:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: RECOVERY_CONTROL
+        RoutingControlArn: !GetAtt ArcRoutingControlPrimary.RoutingControlArn
+      HealthCheckTags:
+        - Key: Name
+          Value: !Sub retail-store-ar-ArcHealthCheckPrimary${Env}
+  ArcHealthCheckStandby:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: RECOVERY_CONTROL
+        RoutingControlArn: !GetAtt ArcRoutingControlStandby.RoutingControlArn
+      HealthCheckTags:
+        - Key: Name
+          Value: !Sub retail-store-ar-ArcHealthCheckStandby${Env}
+
+  ArcRoutingControlPrimarySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ArcRoutingControlPrimarySecret${Env}
+      Description: "ARC Routing Control ARN"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref ArcRoutingControlPrimary
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion
+  ArcHealthCheckIdPrimary:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub ArcHealthCheckIdPrimary${Env}
+      Value: !Ref ArcHealthCheckPrimary
+
+  ArcRoutingControlStandbySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ArcRoutingControlStandbySecret${Env}
+      Description: "ARC Routing Control ARN"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref ArcRoutingControlStandby
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion
+  ArcHealthCheckIdStandby:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub ArcHealthCheckIdStandby${Env}
+      Value: !Ref ArcHealthCheckStandby
+
+  ArcClusterSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ArcClusterSecret${Env}
+      Description: "ARC Cluster ARN"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref ArcCluster
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Sub ${DomainName}
+      VPCs:
+        - VPCId: !Sub '{{resolve:secretsmanager:VpcId-${PrimaryRegion}${Env}}}'
+          VPCRegion: !Ref PrimaryRegion
+        - VPCId: !Sub '{{resolve:secretsmanager:VpcId-${StandbyRegion}${Env}}}'
+          VPCRegion: !Ref StandbyRegion
+  PrimaryRegionRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub store${Env}.${DomainName}
+      Region: !Ref PrimaryRegion
+      HealthCheckId: !Ref ArcHealthCheckPrimary
+      Type: A
+      SetIdentifier: PrimaryRegion
+      AliasTarget:
+        DNSName: !Sub '{{resolve:secretsmanager:Alb-${PrimaryRegion}${Env}:SecretString:DnsName}}'
+        EvaluateTargetHealth: true
+        HostedZoneId: !Sub '{{resolve:secretsmanager:Alb-${PrimaryRegion}${Env}:SecretString:HostedZoneId}}'
+  StandbyRegionRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub store${Env}.${DomainName}
+      Region: !Ref StandbyRegion
+      HealthCheckId: !Ref ArcHealthCheckStandby
+      Type: A
+      SetIdentifier: StandbyRegion
+      AliasTarget:
+        DNSName: !Sub '{{resolve:secretsmanager:Alb-${StandbyRegion}${Env}:SecretString:DnsName}}'
+        EvaluateTargetHealth: true
+        HostedZoneId: !Sub '{{resolve:secretsmanager:Alb-${StandbyRegion}${Env}:SecretString:HostedZoneId}}'
+
+  DNSRecordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub DNSRecordSecret${Env}
+      Description: "Route53 DNS"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref PrimaryRegionRecord
+      ReplicaRegions:
+        - Region: !Ref StandbyRegion

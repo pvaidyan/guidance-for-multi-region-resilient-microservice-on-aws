@@ -47,7 +47,7 @@ Mappings:
 Conditions:
   isPrimary: !Equals
     - !Ref AWS::Region
-    - us-east-2
+    - us-east-1
   isStandby: !Equals
     - !Ref AWS::Region
     - us-west-2
@@ -244,6 +244,18 @@ Resources:
     Properties:
       RepositoryName: !Sub 'orders${Env}'
 
+############
+# Secret to store the VpcId of the created VPC so that the R53 Hosted Zone can be associated with it 
+############
+  VpcIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub VpcId-${AWS::Region}${Env}
+      Description: "VPC Id"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Ref Vpc
+      ReplicaRegions:
+        - Region: !If [isPrimary, us-west-2, us-east-1]
 #SSM Params
   VpcIdParam:
     Type: AWS::SSM::Parameter
