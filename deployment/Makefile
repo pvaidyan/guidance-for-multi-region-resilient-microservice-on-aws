@@ -12,7 +12,7 @@ MAKE=/usr/bin/make
 DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
-
+deploy: deploy-ecs
 deploy-apprunner: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
 deploy-ecs: test-creds primary_infrastructure primary_ecs standby_infrastructure standby_ecs
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
