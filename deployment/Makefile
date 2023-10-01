@@ -14,8 +14,14 @@ COMPOSE_DOCKER_CLI_BUILD=0
 ####
 deploy: deploy-ecs
 deploy-apprunner: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
-deploy-ecs: test-creds primary_infrastructure primary_ecs standby_infrastructure standby_ecs
+deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
+
+create-peer:
+	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 build-catalog-primary: primary_infrastructure
 	@cd ../source/catalog/; docker build -t catalog${ENV} .
@@ -29,7 +35,7 @@ build-catalog-standby: standby_infrastructure
 	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
 
-primary_infrastructure:
+primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -37,11 +43,11 @@ primary_apps: primary_infrastructure build-catalog-primary
 	@aws cloudformation deploy --template ./appRunner.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: primary_infrastructure build-catalog-primary
+primary_ecs: create-peer primary_infrastructure build-catalog-primary
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_infrastructure:
+standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -49,9 +55,13 @@ standby_apps: standby_infrastructure build-catalog-standby
 	@aws cloudformation deploy --template ./appRunner.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_ecs: standby_infrastructure build-catalog-standby
+standby_ecs: create-peer standby_infrastructure build-catalog-standby
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+
+gloal_routing:
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
+	--stack-name gr${ENV} --parameter-overrides Env=${ENV}
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"

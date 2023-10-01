@@ -224,7 +224,7 @@ Resources:
   sgTask:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: ECS Task
       SecurityGroupIngress:
         -
@@ -243,7 +243,7 @@ Resources:
   sgAlb:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: ECS Alb
       SecurityGroupIngress:
         #Public ALB
@@ -265,7 +265,7 @@ Resources:
         - 
           Key: "environment-name"
           Value: "retail-store-ar"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -288,7 +288,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -320,7 +320,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -343,7 +343,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -455,7 +455,7 @@ Resources:
       Matcher:
         HttpCode: '200,302,303'
       TargetType: ip
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
   AlbListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
@@ -1088,3 +1088,18 @@ Resources:
       SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
+
+  # SyntheticsCanary:
+  #     Type: 'AWS::Synthetics::Canary'
+  #     Properties:
+  #         Name: regionalCanary
+  #         ExecutionRoleArn: 'arn:aws:iam::123456789012:role/my-lambda-execution-role-to-run-canary'
+  #         Code: {Handler: pageLoadBlueprint.handler, Script: "var synthetics = require('Synthetics');\nconst log = require('SyntheticsLogger');\nconst pageLoadBlueprint = async function () {\n// INSERT URL here\nconst URL = \"https://amazon.com\";\n\nlet page = await synthetics.getPage();\nconst response = await page.goto(URL, {waitUntil: 'domcontentloaded', timeout: 30000});\n//Wait for page to render.\n//Increase or decrease wait time based on endpoint being monitored.\nawait page.waitFor(15000);\nawait synthetics.takeScreenshot('loaded', 'loaded');\nlet pageTitle = await page.title();\nlog.info('Page title: ' + pageTitle);\nif (response.status() !== 200) {\n     throw \"Failed to load page!\";\n}\n};\n\nexports.handler = async () => {\nreturn await pageLoadBlueprint();\n};\n"}
+  #         ArtifactS3Location: s3://my-results-bucket
+  #         RuntimeVersion: syn-nodejs-puppeteer-3.3
+  #         Schedule: {Expression: 'rate(1 minute)', DurationInSeconds: 3600}
+  #         RunConfig: {TimeoutInSeconds: 60}
+  #         FailureRetentionPeriod: 30
+  #         SuccessRetentionPeriod: 30
+  #         Tags: [{Key: key00AtCreate, Value: value001AtCreate}]
+  #         StartCanaryAfterCreation: false

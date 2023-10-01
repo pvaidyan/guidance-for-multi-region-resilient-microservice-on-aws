@@ -54,27 +54,33 @@ Conditions:
 
 Resources:
   #VPC
-  Vpc:
-    Type: AWS::EC2::VPC
-    Properties: 
-      CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", "VPCCidrBlock"]
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
+  # Vpc:
+  #   Type: AWS::EC2::VPC
+  #   Properties: 
+  #     CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", "VPCCidrBlock"]
+  #     EnableDnsSupport: true
+  #     EnableDnsHostnames: true
   Igw:
     Type: AWS::EC2::InternetGateway
   IgwAttach:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties: 
       InternetGatewayId: !Ref Igw
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
 
-  prvRoute1:
+  prvRouteZero:
     DependsOn: Igw
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref natGW1
+  prvRoutePeer:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !If [isPrimary, !FindInMap [RegionMap, !Ref StandbyRegion, "VPCCidrBlock"], !FindInMap [RegionMap, !Ref PrimaryRegion, "VPCCidrBlock"]]
+      VpcPeeringConnectionId: !Sub '{{resolve:secretsmanager:VpcPeerId${Env}}}'
   natEip1:
     Type: AWS::EC2::EIP
   natGW1:
@@ -85,7 +91,7 @@ Resources:
   pubRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       Tags:
         - Key: "Name"
           Value: "Public Route Table"
@@ -103,7 +109,7 @@ Resources:
   publicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId1]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock1] 
   pubSnRta2:
@@ -114,7 +120,7 @@ Resources:
   publicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId2]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock2]
   pubSnRta3:
@@ -125,7 +131,7 @@ Resources:
   publicSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId3]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock3]    
 
@@ -160,13 +166,13 @@ Resources:
     Properties:
       DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
       LogGroupName: VpcFlowLogs
-      ResourceId: !Ref Vpc
+      ResourceId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       ResourceType: VPC
       TrafficType: ALL
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId1]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock1]
       MapPublicIpOnLaunch: false
@@ -184,7 +190,7 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId2]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock2]
       MapPublicIpOnLaunch: false
@@ -202,7 +208,7 @@ Resources:
   PrivateSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       AvailabilityZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", AvailabilityZoneId3]
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PrivateCidrBlock3]
       MapPublicIpOnLaunch: false
@@ -220,7 +226,7 @@ Resources:
   PrivateRouteTable:
     Type:  AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref Vpc
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
   
 #Ecr Repos
   CheckoutRepo:
@@ -244,31 +250,10 @@ Resources:
     Properties:
       RepositoryName: !Sub 'orders${Env}'
 
-############
-# Secret to store the VpcId of the created VPC so that the R53 Hosted Zone can be associated with it 
-############
-  VpcIdSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub VpcId-${AWS::Region}${Env}
-      Description: "VPC Id"
-      KmsKeyId: "alias/aws/secretsmanager"
-      SecretString: !Ref Vpc
-      ReplicaRegions:
-        - Region: !If [isPrimary, us-west-2, us-east-1]
+
 #SSM Params
-  VpcIdParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub VpcId${Env}
-      Value: !Ref Vpc
-  VpcCidrBlockParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub VpcCidrBlock${Env}
-      Value: !GetAtt Vpc.CidrBlock
+
+
   Subnet1Param:
     Type: AWS::SSM::Parameter
     Properties: 
