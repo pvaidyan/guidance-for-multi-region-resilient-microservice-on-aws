@@ -106,7 +106,7 @@ Resources:
   HostedZone:
     Type: AWS::Route53::HostedZone
     Properties:
-      Name: !Sub ${DomainName}
+      Name: !Sub ${DomainName}${Env}
       VPCs:
         - VPCId: !Sub '{{resolve:secretsmanager:VpcId-${PrimaryRegion}${Env}}}'
           VPCRegion: !Ref PrimaryRegion
