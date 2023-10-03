@@ -96,6 +96,11 @@ destroy-peer_primary: destroy-peer_standby
 	@aws cloudformation wait stack-delete-complete --stack-name baseVpc${ENV} --region ${PRIMARY_REGION}
 
 destroy-apps: destroy-infra 
+	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${STANDBY_REGION}
+
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${STANDBY_REGION}
