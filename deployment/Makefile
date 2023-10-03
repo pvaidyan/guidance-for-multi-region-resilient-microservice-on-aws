@@ -14,7 +14,7 @@ COMPOSE_DOCKER_CLI_BUILD=0
 ####
 deploy: deploy-ecs
 deploy-apprunner: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
-deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs gloal_routing
+deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing canaries
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 create-peer:
@@ -59,10 +59,14 @@ standby_ecs: create-peer standby_infrastructure build-catalog-standby
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-gloal_routing:
+global_routing:
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
-	--stack-name gr${ENV} --parameter-overrides DomainName=demo${ENV}.io Env=${ENV}
-
+	--stack-name gr${ENV} --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
+canaries: global_routing
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
+	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 

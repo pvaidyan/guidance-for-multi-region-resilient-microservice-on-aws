@@ -17,7 +17,6 @@ Parameters:
   DomainName:
     Type: String
     Description: The name of the domain that you want created as a private hosted zone in Route53
-    Default: demo.io
 
 Resources:
   ##### Application Recovery Controller#######
@@ -106,7 +105,7 @@ Resources:
   HostedZone:
     Type: AWS::Route53::HostedZone
     Properties:
-      Name: !Sub ${DomainName}${Env}
+      Name: !Sub ${DomainName}
       VPCs:
         - VPCId: !Sub '{{resolve:secretsmanager:VpcId-${PrimaryRegion}${Env}}}'
           VPCRegion: !Ref PrimaryRegion
@@ -116,7 +115,7 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !Ref HostedZone
-      Name: !Sub store${Env}.${DomainName}
+      Name: !Sub store.${DomainName}
       Region: !Ref PrimaryRegion
       HealthCheckId: !Ref ArcHealthCheckPrimary
       Type: A
@@ -129,7 +128,7 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !Ref HostedZone
-      Name: !Sub store${Env}.${DomainName}
+      Name: !Sub store.${DomainName}
       Region: !Ref StandbyRegion
       HealthCheckId: !Ref ArcHealthCheckStandby
       Type: A
