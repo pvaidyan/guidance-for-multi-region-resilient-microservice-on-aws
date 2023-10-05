@@ -864,10 +864,10 @@ Resources:
                   - 'logs:DeleteLogGroup'
                   - 'cloudwatch:DeleteAlarms'
                 Resource:
-                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cwsyn-regional*'
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cwsyn-*'
                   - !Sub '{{resolve:ssm:canaryBucketArn${Env}}}/*'
-                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-regional*'
-                  - !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Synthetics-Alarm-regional*'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-*'
+                  - !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Synthetics-Alarm-*'
               - Effect: Allow
                 Action:
                   - 's3:ListBucket'
@@ -878,5 +878,5 @@ Resources:
                   - 'synthetics:Get*'
                   - 'cloudwatch:DescribeAlarms'
                 Resource:
-                  - !Sub 'arn:aws:synthetics:${AWS::Region}:${AWS::AccountId}:canary:regional*'
+                  - !Sub 'arn:aws:synthetics:${AWS::Region}:${AWS::AccountId}:canary:*'
                   - !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*'
