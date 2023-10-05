@@ -251,9 +251,14 @@ Resources:
       RepositoryName: !Sub 'orders${Env}'
 
 
+# Canary Security Group - In this stack since it take Lambda 20 mins to delete the ENIs it manages
+  canarySg:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      GroupDescription: Canary - Egress Only
+
 #SSM Params
-
-
   Subnet1Param:
     Type: AWS::SSM::Parameter
     Properties: 
@@ -290,4 +295,9 @@ Resources:
       Type: String
       Name: !Sub PubSubnet3${Env}
       Value: !Ref publicSubnet3
-
+  canarySgParam:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Type: String
+      Name: !Sub canarySgId${Env}
+      Value: !Ref canarySg

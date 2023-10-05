@@ -69,12 +69,6 @@ Resources:
       SecretString: !Ref Vpc
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
-  # VpcCidrBlockParam:
-  #   Type: AWS::SSM::Parameter
-  #   Properties:
-  #     Type: String
-  #     Name: !Sub VpcCidrBlock${Env}
-  #     Value: !GetAtt Vpc.CidrBlock
   Peer:
     Condition: isStandby
     Type: AWS::EC2::VPCPeeringConnection
@@ -92,3 +86,116 @@ Resources:
       SecretString: !Ref Peer
       ReplicaRegions:
         - Region: !Ref PrimaryRegion
+
+  #Canaries pres-reqs
+  canaryPolicy:
+      Type: "AWS::IAM::ManagedPolicy"
+      Properties:
+        #ManagedPolicyName: !Sub "CloudWatchSyntheticsPolicy${Env}"
+        Path: "/service-role/"
+        PolicyDocument: !Sub |
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:PutObject",
+                            "s3:GetObject"
+                        ],
+                        "Resource": [
+                            "arn:aws:s3:::${canaryBucket}/canary/${AWS::Region}/*"
+                        ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:GetBucketLocation"
+                        ],
+                        "Resource": [
+                            "arn:aws:s3:::${canaryBucket}"
+                        ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "logs:CreateLogGroup"
+                        ],
+                        "Resource": [
+                            "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-*"
+                        ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:ListAllMyBuckets",
+                            "xray:PutTraceSegments"
+                        ],
+                        "Resource": [
+                            "*"
+                        ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Resource": "*",
+                        "Action": "cloudwatch:PutMetricData",
+                        "Condition": {
+                            "StringEquals": {
+                                "cloudwatch:namespace": "CloudWatchSynthetics"
+                            }
+                        }
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "ec2:CreateNetworkInterface",
+                            "ec2:DescribeNetworkInterfaces",
+                            "ec2:DeleteNetworkInterface"
+                        ],
+                        "Resource": [
+                            "*"
+                        ]
+                    }
+                ]
+            }
+
+  canaryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      IntelligentTieringConfigurations: 
+        -
+          Id: default
+          Status: Enabled
+          Tierings: 
+            - 
+              AccessTier: ARCHIVE_ACCESS
+              Days: 90   
+  canaryRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      ManagedPolicyArns: 
+        - !Ref canaryPolicy
+      Description: "CloudWatch Synthetics lambda execution role for running canaries"
+  canaryRoleArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub canaryRoleArn${Env}
+      Value: !GetAtt canaryRole.Arn
+  canaryBucketName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub canaryBucketName${Env}
+      Value: !Ref canaryBucket
+  canaryBucketArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub canaryBucketArn${Env}
+      Value: !GetAtt canaryBucket.Arn

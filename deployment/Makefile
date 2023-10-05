@@ -13,8 +13,7 @@ DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
 deploy: deploy-ecs
-deploy-apprunner: test-creds primary_infrastructure standby_infrastructure build-catalog primary_apps standby_apps
-deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing canaries
+deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing canaries_primary canaries_standby
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 create-peer:
@@ -39,11 +38,7 @@ primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_apps: primary_infrastructure build-catalog-primary
-	@aws cloudformation deploy --template ./appRunner.yaml --region ${PRIMARY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
-
-primary_ecs: create-peer primary_infrastructure build-catalog-primary
+primary_ecs: primary_infrastructure build-catalog-primary
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -51,22 +46,21 @@ standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_apps: standby_infrastructure build-catalog-standby
-	@aws cloudformation deploy --template ./appRunner.yaml --region ${STANDBY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
-
-standby_ecs: create-peer standby_infrastructure build-catalog-standby
+standby_ecs: standby_infrastructure build-catalog-standby
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-global_routing:
+global_routing: standby_ecs primary_ecs
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
 	--stack-name gr${ENV} --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
-canaries: global_routing
+
+canaries_primary: global_routing
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
+canaries_standby: global_routing
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
+
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 
@@ -74,40 +68,62 @@ test-creds:
 	@echo "Current AWS session:"
 	@aws sts get-caller-identity
 
-destroy-all: destroy-peer destroy-apps
-	@echo "Removing all cloudformation stacks!!!"
+destroy-all: destroy-global_routing destroy-apps destroy-ecr destroy-infra destroy-peer 
+	@echo "Removed all cloudformation stacks!!!"
 
 destroy-ecr:
-	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(PRIMARY_REGION) --no-cli-pager
-	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(STANDBY_REGION) --no-cli-pager
+	@echo "Deleting ECR Repos..."
+	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
+	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
-destroy-global_routing:
+destroy-global_routing: 
+	@echo "Deleting global routing stack..."
 	@aws cloudformation delete-stack --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	
 destroy-peer: destroy-peer_primary destroy-peer_standby 
 
-destroy-peer_standby: 
+destroy-peer_standby: destroy-infra
+	@echo "Deleting ${STANDBY_REGION} VPC..."
 	@aws cloudformation delete-stack --stack-name baseVpc${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseVpc${ENV} --region ${STANDBY_REGION}
 
 destroy-peer_primary: destroy-peer_standby
+	@echo "Deleting ${PRIMARY_REGION} VPC..."
 	@aws cloudformation delete-stack --stack-name baseVpc${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseVpc${ENV} --region ${PRIMARY_REGION}
 
-destroy-apps: destroy-infra 
+destroy-apps: destroy-apps-primary destroy-apps-standby
+	
+destroy-apps-primary: destroy-global_routing
+	@echo "Cleaning up S3 Buckets in ${PRIMARY_REGION}..."
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
+	./cleanup.sh $(result)
+
+	@echo "Deleting canaries in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+
+	@echo "Deleting applications in ${PRIMARY_REGION}..."
+	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${PRIMARY_REGION}
+
+destroy-apps-standby: destroy-global_routing
+	@echo "Cleaning up S3 Buckets in ${STANDBY_REGION}..."
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
+	./cleanup.sh $(result)
+	
+	@echo "Deleting canaries in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${STANDBY_REGION}
 
-	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${PRIMARY_REGION}
-	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${PRIMARY_REGION}
+	@echo "Deleting applications in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${STANDBY_REGION}
-
-destroy-infra: destroy-ecr destroy-peer
+destroy-infra: destroy-apps destroy-ecr
+	@echo "Deleting networking resources in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
+	@echo "Deleting networking resources in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}

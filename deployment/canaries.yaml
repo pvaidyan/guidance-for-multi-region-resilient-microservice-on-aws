@@ -8,106 +8,20 @@ Parameters:
     Description: String to enable multiple deployments per AWS region
 
 Resources:
-# Canaries
-  canaryBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      IntelligentTieringConfigurations: 
-        -
-          Id: default
-          Status: Enabled
-          Tierings: 
-            - 
-              AccessTier: ARCHIVE_ACCESS
-              Days: 90    
-
-  canaryPolicy:
-      Type: "AWS::IAM::ManagedPolicy"
-      Properties:
-        #ManagedPolicyName: !Sub "CloudWatchSyntheticsPolicy${Env}"
-        Path: "/service-role/"
-        PolicyDocument: !Sub |
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:PutObject",
-                            "s3:GetObject"
-                        ],
-                        "Resource": [
-                            "arn:aws:s3:::${canaryBucket}/canary/${AWS::Region}/*"
-                        ]
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:GetBucketLocation"
-                        ],
-                        "Resource": [
-                            "arn:aws:s3:::${canaryBucket}"
-                        ]
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "logs:CreateLogStream",
-                            "logs:PutLogEvents",
-                            "logs:CreateLogGroup"
-                        ],
-                        "Resource": [
-                            "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-*"
-                        ]
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:ListAllMyBuckets",
-                            "xray:PutTraceSegments"
-                        ],
-                        "Resource": [
-                            "*"
-                        ]
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Resource": "*",
-                        "Action": "cloudwatch:PutMetricData",
-                        "Condition": {
-                            "StringEquals": {
-                                "cloudwatch:namespace": "CloudWatchSynthetics"
-                            }
-                        }
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "ec2:CreateNetworkInterface",
-                            "ec2:DescribeNetworkInterfaces",
-                            "ec2:DeleteNetworkInterface"
-                        ],
-                        "Resource": [
-                            "*"
-                        ]
-                    }
-                ]
-            }
-  canaryRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-        Path: "/service-role/"
-        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
-        MaxSessionDuration: 3600
-        ManagedPolicyArns: 
-          - !Ref canaryPolicy
-        Description: "CloudWatch Synthetics lambda execution role for running canaries"
-  
+# Canaries   
   localSyntheticsCanaryHome:
       Type: 'AWS::Synthetics::Canary'
       Properties:
           Name: !Sub regional-home${Env}
-          ExecutionRoleArn: !GetAtt canaryRole.Arn
+          ExecutionRoleArn: !Sub '{{resolve:ssm:canaryRoleArn${Env}}}'
+          VPCConfig:
+            SecurityGroupIds:
+              - !Sub '{{resolve:ssm:canarySgId${Env}}}'
+            SubnetIds:
+            - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+            VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
           Code: 
             Handler: pageLoadBlueprint.handler 
             Script: !Sub |
@@ -158,13 +72,13 @@ Resources:
               def handler(event, context):
                   logger.info("Selenium Python API canary.")
                   main()
-          ArtifactS3Location: !Sub s3://${canaryBucket}
+          ArtifactS3Location: !Sub s3://{{resolve:ssm:canaryBucketName${Env}}}
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
             DurationInSeconds: 30
           RunConfig: 
-            TimeoutInSeconds: 5
+            TimeoutInSeconds: 10
           FailureRetentionPeriod: 1
           SuccessRetentionPeriod: 1
           StartCanaryAfterCreation: true
@@ -172,7 +86,15 @@ Resources:
       Type: 'AWS::Synthetics::Canary'
       Properties:
           Name: !Sub regional-cart${Env}
-          ExecutionRoleArn: !GetAtt canaryRole.Arn
+          ExecutionRoleArn: !Sub '{{resolve:ssm:canaryRoleArn${Env}}}'
+          VPCConfig:
+            SecurityGroupIds:
+              - !Sub '{{resolve:ssm:canarySgId${Env}}}'
+            SubnetIds:
+            - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+            VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
           Code: 
             Handler: pageLoadBlueprint.handler 
             Script: !Sub |
@@ -223,13 +145,13 @@ Resources:
               def handler(event, context):
                   logger.info("Selenium Python API canary.")
                   main()
-          ArtifactS3Location: !Sub s3://${canaryBucket}
+          ArtifactS3Location: !Sub 's3://{{resolve:ssm:canaryBucketName${Env}}}'
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
             DurationInSeconds: 30
           RunConfig: 
-            TimeoutInSeconds: 5
+            TimeoutInSeconds: 10
           FailureRetentionPeriod: 1
           SuccessRetentionPeriod: 1
           StartCanaryAfterCreation: true
@@ -237,7 +159,15 @@ Resources:
       Type: 'AWS::Synthetics::Canary'
       Properties:
           Name: !Sub regional-catalog${Env}
-          ExecutionRoleArn: !GetAtt canaryRole.Arn
+          ExecutionRoleArn: !Sub '{{resolve:ssm:canaryRoleArn${Env}}}' 
+          VPCConfig:
+            SecurityGroupIds:
+              - !Sub '{{resolve:ssm:canarySgId${Env}}}'
+            SubnetIds:
+            - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+            - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+            VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
           Code: 
             Handler: pageLoadBlueprint.handler 
             Script: !Sub |
@@ -288,13 +218,174 @@ Resources:
               def handler(event, context):
                   logger.info("Selenium Python API canary.")
                   main()
-          ArtifactS3Location: !Sub s3://${canaryBucket}
+          ArtifactS3Location: !Sub s3://{{resolve:ssm:canaryBucketName${Env}}}
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
             DurationInSeconds: 30
           RunConfig: 
-            TimeoutInSeconds: 5
+            TimeoutInSeconds: 10
           FailureRetentionPeriod: 1
           SuccessRetentionPeriod: 1
           StartCanaryAfterCreation: true
+
+# as Canary does not remove dependent resource like logs,lambda functions and objects inside S3 artifacts bucket
+# we use Custom resource to call lambda function to delete all dependencies
+  cleanupHomeCanaryStackOnDelete:
+    Type: 'Custom::cleanCanaryStack'
+    Properties:
+      ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
+      BucketName: !Sub '{{resolve:ssm:canaryBucketName${Env}}}'
+      CanaryName: !Ref localSyntheticsCanaryHome
+
+  cleanupCatalogCanaryStackOnDelete:
+    Type: 'Custom::cleanCanaryStack'
+    Properties:
+      ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
+      BucketName: !Sub '{{resolve:ssm:canaryBucketName${Env}}}'
+      CanaryName: !Ref localSyntheticsCanaryCatalog
+
+  cleanupCartCanaryStackOnDelete:
+    Type: 'Custom::cleanCanaryStack'
+    Properties:
+      ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
+      BucketName: !Sub '{{resolve:ssm:canaryBucketName${Env}}}'
+      CanaryName: !Ref localSyntheticsCanaryCart
+
+  CleanCanaryStackLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+
+          #Initialize boto3 clients for synthetics,lambda, CloudWatch logs,cloudwatch and s3
+          synthetics = boto3.client('synthetics')
+          lambdaClient = boto3.client('lambda')
+          logs = boto3.client('logs')
+          cloudwatch = boto3.client('cloudwatch')
+          s3 = boto3.resource('s3')
+
+
+          def lambda_handler(event, context):
+            try:
+                bucketName = event['ResourceProperties']['BucketName']
+                CanaryName = event['ResourceProperties']['CanaryName']
+                Errors=[]
+                if event['RequestType'] == 'Delete':
+
+                  try:
+                    # Find Lambada name corresponding to your Canary name
+                    Canarydetails = synthetics.get_canary(Name=CanaryName)
+                    CanaryLambdaName = Canarydetails['Canary']['EngineArn'].split(':')[-2]
+                    CanaryArtifactBucket = Canarydetails['Canary']['ArtifactS3Location']
+                  except Exception as e:
+                    print('Get-Canary failed: '+str(e))
+                    Errors.append('Get-Canary failed: '+str(e))
+                    pass
+                  try:
+                    #delete Canary Lambda
+                    lambdaClient.delete_function(FunctionName=CanaryLambdaName)
+                  except Exception as e:
+                    print('Deleting Canary Lambda failed: '+str(e))
+                    Errors.append('Deleting Canary Lambda failed: '+str(e))
+                    pass
+                  try:
+                    #delete Canary log group
+                    CanaryLogGroup='/aws/lambda/'+CanaryLambdaName
+                    logs.delete_log_group(logGroupName=CanaryLogGroup)
+                  except Exception as e:
+                    print('Deleting Canary logs failed: '+str(e))
+                    Errors.append('Deleting Canary logs failed: '+str(e))
+                    pass
+
+                  # Delete Alarms
+                  try:
+                    # retrun all alarms metricAlarm and Composite Alarms with prefix 'Synthetics-Alarm-CanaryName'
+                    Alarms = cloudwatch.describe_alarms(AlarmNamePrefix='Synthetics-Alarm-'+CanaryName,AlarmTypes=['MetricAlarm'])
+
+                    # Create list of all metricAlarms as deleteAlarms API can delete up to 100 alarm in one API
+                    metricAlarms=[]
+                    for alarm in Alarms['MetricAlarms']:
+                      metricAlarms.append(alarm['AlarmName'])
+                    if metricAlarms:
+                      cloudwatch.delete_alarms(AlarmNames=metricAlarms)
+                  except Exception as e:
+                    print('Deleting Canary Alarm failed: '+str(e))
+                    Errors.append('Deleting Canary Alarm failed: '+str(e))
+
+                  #Find Bucket and delete canary objects under prefix if exist
+                  try:
+                    bucket = s3.Bucket(bucketName)
+                    #Check if there is prefix in the Canary artifact bucket
+                    if (CanaryArtifactBucket.find(bucketName+'/') != -1):
+                      #search for objects under prefix
+                      objects = bucket.objects.filter(Prefix=CanaryArtifactBucket.split(bucketName+'/')[1])
+                    else:
+                      #If no prefix, search for all objects under the bucket
+                      objects = bucket.objects.filter()
+
+                    for obj in objects:
+                      # delete objects with canary prefix
+                      s3.Object(bucket.name, obj.key).delete()
+                  except Exception as e:
+                    print('Deleting S3 Objects failed: '+str(e))
+                    Errors.append('Deleting S3 Objects failed: '+str(e))
+                    pass
+                #IF any of dependency resources was not deleted raise exception to send custom error message to stack
+                if Errors:
+                  raise Exception(Errors)
+                cfnresponse.send(event, context, cfnresponse.SUCCESS,json.loads("{}"),None,False,'Reason: Stack cleaned successfully')
+
+            except Exception as e:
+                print(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED,json.loads("{}"),None,False,'Reason: ' + str(e))
+
+
+      Handler: index.lambda_handler
+      FunctionName: !Sub 'CleanCanaryResources-${AWS::StackName}'
+      Role: !GetAtt CleanerLambdaExecutionRole.Arn
+      Runtime: python3.8
+      Timeout: 900
+
+  CleanerLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Role used to run Cleaner lambda function on stack deletion
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyName: CleanerLambdaCFNRoleLabPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:DeleteFunction'
+                  - 's3:DeleteObject'
+                  - 'logs:DeleteLogGroup'
+                  - 'cloudwatch:DeleteAlarms'
+                Resource:
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cwsyn-regional*'
+                  - !Sub '{{resolve:ssm:canaryBucketArn${Env}}}/*'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cwsyn-regional*'
+                  - !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Synthetics-Alarm-regional*'
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub '{{resolve:ssm:canaryBucketArn${Env}}}'
+              - Effect: Allow
+                Action:
+                  - 'synthetics:Get*'
+                  - 'cloudwatch:DescribeAlarms'
+                Resource:
+                  - !Sub 'arn:aws:synthetics:${AWS::Region}:${AWS::AccountId}:canary:regional*'
+                  - !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*'

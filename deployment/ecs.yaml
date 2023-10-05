@@ -1088,5 +1088,3 @@ Resources:
       SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
-
-  
