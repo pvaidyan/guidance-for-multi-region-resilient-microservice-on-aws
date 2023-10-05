@@ -56,10 +56,10 @@ global_routing: standby_ecs primary_ecs
 
 canaries_primary: global_routing
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
-	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
 canaries_standby: global_routing
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
-	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} --capabilities CAPABILITY_IAM 
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM 
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
