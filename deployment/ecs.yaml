@@ -224,7 +224,7 @@ Resources:
   sgTask:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: ECS Task
       SecurityGroupIngress:
         -
@@ -243,7 +243,7 @@ Resources:
   sgAlb:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: ECS Alb
       SecurityGroupIngress:
         #Public ALB
@@ -265,7 +265,7 @@ Resources:
         - 
           Key: "environment-name"
           Value: "retail-store-ar"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -288,7 +288,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -320,7 +320,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -343,7 +343,7 @@ Resources:
         - 
           Key: "created-by"
           Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       SecurityGroupIngress: 
         - 
           SourceSecurityGroupId: !Ref sgTask
@@ -455,7 +455,7 @@ Resources:
       Matcher:
         HttpCode: '200,302,303'
       TargetType: ip
-      VpcId: !Sub '{{resolve:ssm:VpcId${Env}}}'
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
   AlbListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
