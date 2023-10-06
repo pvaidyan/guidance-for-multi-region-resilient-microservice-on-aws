@@ -306,29 +306,22 @@ Resources:
           CidrIpv6: "::/0"
           Description: "Allow all egress"
           IpProtocol: "-1"
-  sgCatalogDB:
-    Type: "AWS::EC2::SecurityGroup"
+  CatalogAuroraMySqlComputeSecurityGroupInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupDescription: "Control traffic to/from RDS Aurora retail-store-ar-catalog"
-      Tags: 
-        - 
-          Key: "Name"
-          Value: "retail-store-ar-catalog-db"
-        - 
-          Key: "environment-name"
-          Value: "retail-store-ar"
-        - 
-          Key: "created-by"
-          Value: "retail-store-sample-app"
-      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
-      SecurityGroupIngress: 
-        - 
-          SourceSecurityGroupId: !Ref sgTask
-          SourceSecurityGroupOwnerId: !Ref AWS::AccountId
-          Description: "From allowed SGs"
-          FromPort: 3306
-          IpProtocol: "tcp"
-          ToPort: 3306
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref sgTask
+      GroupId: !Sub '{{resolve:ssm:catalog-aurora-mysql-sg-${AWS::Region}${Env}}}'
+  OrdersAuroraMySqlComputeSecurityGroupInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref sgTask
+      GroupId: !Sub '{{resolve:ssm:orders-aurora-mysql-sg-${AWS::Region}${Env}}}'
   sgRedis:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
