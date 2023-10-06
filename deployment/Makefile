@@ -62,23 +62,23 @@ canaries_standby: global_routing
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
 
 primary_region_catalog-db:
-	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-primary-cluster.yml \
-	--region ${PRIMARY_REGION} --stack-name catalog-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
+	--region ${PRIMARY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog
 
 standby_region_catalog-db:
-	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-standby-cluster.yml \
-	--region ${STANDBY_REGION} --stack-name catalog-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
+	--region ${STANDBY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog
 
 primary_region_orders-db:
-	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-primary-cluster.yml \
-	--region ${PRIMARY_REGION} --stack-name orders-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
+	--region ${PRIMARY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders
 
 standby_region_orders-db:
-	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-standby-cluster.yml \
-	--region ${STANDBY_REGION} --stack-name orders-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
+	--region ${STANDBY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders
 
 clean:
@@ -91,12 +91,12 @@ test-creds:
 destroy-all: destroy-global_routing destroy-apps destroy-ecr destroy-infra destroy-peer 
 	@echo "Removed all cloudformation stacks!!!"
 
-destroy-ecr:
+destroy-ecr: destroy-apps
 	@echo "Deleting ECR Repos..."
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
-destroy-global_routing: 
+destroy-global_routing: destroy-canaries-standby destroy-canaries-primary
 	@echo "Deleting global routing stack..."
 	@aws cloudformation delete-stack --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name gr${ENV} --region ${PRIMARY_REGION}
@@ -120,10 +120,6 @@ destroy-apps-primary: destroy-global_routing
 	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
 	./cleanup.sh $(result)
 
-	@echo "Deleting canaries in ${PRIMARY_REGION}..."
-	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
-	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
-
 	@echo "Deleting applications in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${PRIMARY_REGION}
@@ -133,10 +129,6 @@ destroy-apps-standby: destroy-global_routing
 	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
 	./cleanup.sh $(result)
 	
-	@echo "Deleting canaries in ${STANDBY_REGION}..."
-	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${STANDBY_REGION}
-	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${STANDBY_REGION}
-
 	@echo "Deleting applications in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${STANDBY_REGION}
@@ -147,3 +139,13 @@ destroy-infra: destroy-apps destroy-ecr
 	@echo "Deleting networking resources in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${PRIMARY_REGION}
+
+destroy-canaries-standby:
+	@echo "Deleting canaries in ${STANDBY_REGION}..."
+	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${STANDBY_REGION}
+
+destroy-canaries-primary:
+	@echo "Deleting canaries in ${PRIMARY_REGION}..."
+	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
