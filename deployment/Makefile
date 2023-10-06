@@ -38,7 +38,7 @@ primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: primary_infrastructure build-catalog-primary
+primary_ecs: primary_infrastructure build-catalog-primary primary_region_catalog-db primary_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -46,7 +46,7 @@ standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_ecs: standby_infrastructure build-catalog-standby
+standby_ecs: standby_infrastructure build-catalog-standby standby_region_catalog-db standby_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -59,7 +59,27 @@ canaries_primary: global_routing
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
 canaries_standby: global_routing
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
-	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM 
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
+
+primary_region_catalog-db:
+	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-primary-cluster.yml \
+	--region ${PRIMARY_REGION} --stack-name catalog-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	--parameter-overrides Env=${ENV} NamingPrefix=catalog
+
+standby_region_catalog-db:
+	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-standby-cluster.yml \
+	--region ${STANDBY_REGION} --stack-name catalog-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	--parameter-overrides Env=${ENV} NamingPrefix=catalog
+
+primary_region_orders-db:
+	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-primary-cluster.yml \
+	--region ${PRIMARY_REGION} --stack-name orders-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	--parameter-overrides Env=${ENV} NamingPrefix=orders
+
+standby_region_orders-db:
+	@aws cloudformation deploy --template ./datastores/aurora/aurora-global-standby-cluster.yml \
+	--region ${STANDBY_REGION} --stack-name orders-db-stack-${ENV} --capabilities CAPABILITY_IAM \
+	--parameter-overrides Env=${ENV} NamingPrefix=orders
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
