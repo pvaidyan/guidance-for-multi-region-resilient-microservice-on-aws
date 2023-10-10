@@ -29,7 +29,6 @@ build-catalog-primary: primary_infrastructure
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
 
 build-catalog-standby: standby_infrastructure
-	@cd ../source/catalog/; docker build -t catalog${ENV} .
 	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
@@ -38,7 +37,7 @@ primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: primary_infrastructure build-catalog-primary primary_region_catalog-db primary_region_orders-db
+primary_ecs: build-catalog-primary primary_region_catalog-db primary_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -46,7 +45,7 @@ standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_ecs: standby_infrastructure build-catalog-standby standby_region_catalog-db standby_region_orders-db
+standby_ecs: build-catalog-standby standby_region_catalog-db standby_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -61,25 +60,27 @@ canaries_standby: global_routing
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
 
-primary_region_catalog-db:
+primary_region_catalog-db: primary_infrastructure
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
-	--parameter-overrides Env=${ENV} NamingPrefix=catalog
+	--parameter-overrides Env=${ENV} NamingPrefix=catalog DatabaseName=catalog
 
-standby_region_catalog-db:
+standby_region_catalog-db: standby_infrastructure primary_region_catalog-db
+	$(eval result:=$(shell aws ssm get-parameter --name catalog-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
-	--parameter-overrides Env=${ENV} NamingPrefix=catalog
+	--parameter-overrides Env=${ENV} NamingPrefix=catalog DBSecretArn=${result} DatabaseName=catalog
 
-primary_region_orders-db:
+primary_region_orders-db: primary_infrastructure
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
-	--parameter-overrides Env=${ENV} NamingPrefix=orders
+	--parameter-overrides Env=${ENV} NamingPrefix=orders DatabaseName=orders
 
-standby_region_orders-db:
+standby_region_orders-db: standby_infrastructure primary_region_orders-db
+	$(eval result:=$(shell aws ssm get-parameter --name orders-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
-	--parameter-overrides Env=${ENV} NamingPrefix=orders
+	--parameter-overrides Env=${ENV} NamingPrefix=orders DBSecretArn=${result} DatabaseName=orders
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
@@ -88,12 +89,15 @@ test-creds:
 	@echo "Current AWS session:"
 	@aws sts get-caller-identity
 
-destroy-all: destroy-global_routing destroy-apps destroy-ecr destroy-infra destroy-peer 
+destroy-all: destroy-peer 
 	@echo "Removed all cloudformation stacks!!!"
 
-destroy-ecr: destroy-apps
+destroy-ecr-primary: destroy-apps-primary
 	@echo "Deleting ECR Repos..."
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
+
+destroy-ecr-standby: destroy-apps-standby
+	@echo "Deleting ECR Repos..."
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
 destroy-global_routing: destroy-canaries-standby destroy-canaries-primary
@@ -112,8 +116,6 @@ destroy-peer_primary: destroy-peer_standby
 	@echo "Deleting ${PRIMARY_REGION} VPC..."
 	@aws cloudformation delete-stack --stack-name baseVpc${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseVpc${ENV} --region ${PRIMARY_REGION}
-
-destroy-apps: destroy-apps-primary destroy-apps-standby
 	
 destroy-apps-primary: destroy-global_routing
 	@echo "Cleaning up S3 Buckets in ${PRIMARY_REGION}..."
@@ -132,7 +134,8 @@ destroy-apps-standby: destroy-global_routing
 	@echo "Deleting applications in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${STANDBY_REGION}
-destroy-infra: destroy-apps destroy-ecr
+
+destroy-infra: destroy-ecr-standby destroy-ecr-primary destroy-databases-standby destroy-databases-primary
 	@echo "Deleting networking resources in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
@@ -149,3 +152,19 @@ destroy-canaries-primary:
 	@echo "Deleting canaries in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+
+destroy-databases-primary: destroy-apps-primary destroy-databases-standby
+	@echo "Deleting databases in ${PRIMARY_REGION}..."
+	@aws cloudformation delete-stack --stack-name catalog-db-stack${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation delete-stack --stack-name orders-db-stack${ENV} --region ${PRIMARY_REGION}
+
+	@aws cloudformation wait stack-delete-complete --stack-name catalog-db-stack${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name orders-db-stack${ENV} --region ${PRIMARY_REGION}
+
+destroy-databases-standby: destroy-apps-standby 
+	@echo "Deleting databases in ${STANDBY_REGION}..."
+	@aws cloudformation delete-stack --stack-name catalog-db-stack${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation delete-stack --stack-name orders-db-stack${ENV} --region ${STANDBY_REGION}
+	
+	@aws cloudformation wait stack-delete-complete --stack-name catalog-db-stack${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name orders-db-stack${ENV} --region ${STANDBY_REGION}

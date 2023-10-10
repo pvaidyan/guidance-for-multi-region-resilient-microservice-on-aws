@@ -64,83 +64,83 @@ Resources:
           Username: mq
           Password: !Sub '{{resolve:secretsmanager:${MqPassword}}}'
 
-  CatalogDbSubnetGroup:
-    Type: "AWS::RDS::DBSubnetGroup"
-    Properties:
-      DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-catalog"
-      SubnetIds: 
-        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
-        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
-        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  # CatalogDbSubnetGroup:
+  #   Type: "AWS::RDS::DBSubnetGroup"
+  #   Properties:
+  #     DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-catalog"
+  #     SubnetIds: 
+  #       - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+  #       - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+  #       - !Sub '{{resolve:ssm:Subnet3${Env}}}'
 
-  OrdersDbSubnetGroup:
-    Type: "AWS::RDS::DBSubnetGroup"
-    Properties:
-      DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-orders"
-      SubnetIds: 
-        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
-        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
-        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+  # OrdersDbSubnetGroup:
+  #   Type: "AWS::RDS::DBSubnetGroup"
+  #   Properties:
+  #     DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-orders"
+  #     SubnetIds: 
+  #       - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+  #       - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+  #       - !Sub '{{resolve:ssm:Subnet3${Env}}}'
 
-  CatalogDB:
-    Type: "AWS::RDS::DBCluster"
-    Properties:
-      BackupRetentionPeriod: 7
-      DatabaseName: catalog
-      DBClusterIdentifier: !Sub 'retail-store-ar-catalog${Env}'
-      DBSubnetGroupName: !Ref CatalogDbSubnetGroup
-      Engine: "aurora-mysql"
-      Port: 3306
-      MasterUsername: "root"
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${CatalogDbPassword}}}'
-      PreferredBackupWindow: "02:00-03:00"
-      PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
-      VpcSecurityGroupIds: 
-        - !Ref sgCatalogDB
-      StorageEncrypted: true
-      KmsKeyId: !Ref KmsKey
-      EnableIAMDatabaseAuthentication: false
-      DeletionProtection: false
-      EnableHttpEndpoint: false
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: 1
-        MaxCapacity: 8
-  CatalogDbInstance:
-    Type: "AWS::RDS::DBInstance"
-    Properties:
-      DBInstanceClass: "db.serverless"
-      Engine: "aurora-mysql"
-      DBClusterIdentifier: !Ref CatalogDB
+  # CatalogDB:
+  #   Type: "AWS::RDS::DBCluster"
+  #   Properties:
+  #     BackupRetentionPeriod: 7
+  #     DatabaseName: catalog
+  #     DBClusterIdentifier: !Sub 'retail-store-ar-catalog${Env}'
+  #     DBSubnetGroupName: !Ref CatalogDbSubnetGroup
+  #     Engine: "aurora-mysql"
+  #     Port: 3306
+  #     MasterUsername: "root"
+  #     MasterUserPassword: !Sub '{{resolve:secretsmanager:${CatalogDbPassword}}}'
+  #     PreferredBackupWindow: "02:00-03:00"
+  #     PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
+  #     VpcSecurityGroupIds: 
+  #       - !Sub '{{resolve:ssm:catalog-aurora-mysql-sg-${AWS::Region}${Env}}}'
+  #     StorageEncrypted: true
+  #     KmsKeyId: !Ref KmsKey
+  #     EnableIAMDatabaseAuthentication: false
+  #     DeletionProtection: false
+  #     EnableHttpEndpoint: false
+  #     ServerlessV2ScalingConfiguration:
+  #       MinCapacity: 1
+  #       MaxCapacity: 8
+  # CatalogDbInstance:
+  #   Type: "AWS::RDS::DBInstance"
+  #   Properties:
+  #     DBInstanceClass: "db.serverless"
+  #     Engine: "aurora-mysql"
+  #     DBClusterIdentifier: !Ref CatalogDB
 
-  OrdersDB:
-    Type: "AWS::RDS::DBCluster"
-    Properties:
-      BackupRetentionPeriod: 7
-      DatabaseName: orders      
-      DBClusterIdentifier: !Sub 'retail-store-ar-orders${Env}'
-      DBSubnetGroupName: !Ref OrdersDbSubnetGroup
-      Engine: "aurora-mysql"
-      Port: 3306
-      MasterUsername: "root"
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${OrdersDbPassword}}}'
-      PreferredBackupWindow: "02:00-03:00"
-      PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
-      VpcSecurityGroupIds: 
-        - !Ref sgOrdersDB
-      StorageEncrypted: true
-      KmsKeyId: !Ref KmsKey
-      EnableIAMDatabaseAuthentication: false
-      DeletionProtection: false
-      EnableHttpEndpoint: false
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: 1
-        MaxCapacity: 8
-  OrdersDbInstance:
-    Type: "AWS::RDS::DBInstance"
-    Properties:
-      DBInstanceClass: "db.serverless"
-      Engine: "aurora-mysql"
-      DBClusterIdentifier: !Ref OrdersDB
+  # OrdersDB:
+  #   Type: "AWS::RDS::DBCluster"
+  #   Properties:
+  #     BackupRetentionPeriod: 7
+  #     DatabaseName: orders      
+  #     DBClusterIdentifier: !Sub 'retail-store-ar-orders${Env}'
+  #     DBSubnetGroupName: !Ref OrdersDbSubnetGroup
+  #     Engine: "aurora-mysql"
+  #     Port: 3306
+  #     MasterUsername: "root"
+  #     MasterUserPassword: !Sub '{{resolve:secretsmanager:${OrdersDbPassword}}}'
+  #     PreferredBackupWindow: "02:00-03:00"
+  #     PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
+  #     VpcSecurityGroupIds: 
+  #       - !Ref sgOrdersDB
+  #     StorageEncrypted: true
+  #     KmsKeyId: !Ref KmsKey
+  #     EnableIAMDatabaseAuthentication: false
+  #     DeletionProtection: false
+  #     EnableHttpEndpoint: false
+  #     ServerlessV2ScalingConfiguration:
+  #       MinCapacity: 1
+  #       MaxCapacity: 8
+  # OrdersDbInstance:
+  #   Type: "AWS::RDS::DBInstance"
+  #   Properties:
+  #     DBInstanceClass: "db.serverless"
+  #     Engine: "aurora-mysql"
+  #     DBClusterIdentifier: !Ref OrdersDB
     
   CartsTable:
     Type: "AWS::DynamoDB::Table"
@@ -379,20 +379,20 @@ Resources:
       MultiRegion: false
   
   #Secrets
-  OrdersDbPassword:
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: !Sub 'retail-store-ar-orders-db-password${Env}'
-      KmsKeyId: !Ref KmsKey
-      GenerateSecretString: 
-        ExcludePunctuation: true
-  OrdersSecret:
-    DependsOn: OrdersDbPassword
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: !Sub "retail-store-ar-orders-db${Env}"
-      KmsKeyId: !Ref KmsKey
-      SecretString: !Sub "{\"host\":\"jdbc:mariadb://${OrdersDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}/orders\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-orders-db-password${Env}}}\",\"username\":\"root\"}"
+  # OrdersDbPassword:
+  #   Type: "AWS::SecretsManager::Secret"
+  #   Properties:
+  #     Name: !Sub 'retail-store-ar-orders-db-password${Env}'
+  #     KmsKeyId: !Ref KmsKey
+  #     GenerateSecretString: 
+  #       ExcludePunctuation: true
+  # OrdersSecret:
+  #   DependsOn: OrdersDbPassword
+  #   Type: "AWS::SecretsManager::Secret"
+  #   Properties:
+  #     Name: !Sub "retail-store-ar-orders-db${Env}"
+  #     KmsKeyId: !Ref KmsKey
+  #     SecretString: !Sub "{\"host\":\"jdbc:mariadb://${OrdersDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}/orders\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-orders-db-password${Env}}}\",\"username\":\"root\"}"
   MqSecret:
     DependsOn: 
       - MqPassword 
@@ -408,19 +408,19 @@ Resources:
       KmsKeyId: !Ref KmsKey
       GenerateSecretString: 
         ExcludePunctuation: true
-  CatalogDbPassword:
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: !Sub 'retail-store-ar-catalog-db-password${Env}'
-      KmsKeyId: !Ref KmsKey
-      GenerateSecretString: 
-        ExcludePunctuation: true
-  CatalogSecret:
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: !Sub 'retail-store-ar-catalog-db${Env}'
-      KmsKeyId: !Ref KmsKey
-      SecretString: !Sub "{\"host\":\"${CatalogDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-catalog-db-password${Env}}}\",\"username\":\"root\"}"
+  # CatalogDbPassword:
+  #   Type: "AWS::SecretsManager::Secret"
+  #   Properties:
+  #     Name: !Sub 'retail-store-ar-catalog-db-password${Env}'
+  #     KmsKeyId: !Ref KmsKey
+  #     GenerateSecretString: 
+  #       ExcludePunctuation: true
+  # CatalogSecret:
+  #   Type: "AWS::SecretsManager::Secret"
+  #   Properties:
+  #     Name: !Sub 'retail-store-ar-catalog-db${Env}'
+  #     KmsKeyId: !Ref KmsKey
+  #     SecretString: !Sub "{\"host\":\"${CatalogDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-catalog-db-password${Env}}}\",\"username\":\"root\"}"
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -593,7 +593,7 @@ Resources:
                   - "logs:PutLogEvents"
               - Effect: "Allow"
                 Resource: 
-                  - !Ref OrdersSecret
+                  - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/*'
                   - !Ref MqSecret
                 Action:
                   - "secretsmanager:GetSecretValue"
@@ -602,6 +602,11 @@ Resources:
                   - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}"
                 Action: 
                   - "kms:Decrypt*"
+              - Effect: "Allow"
+                Resource: 
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*'
+                Action:
+                  - "ssm:GetParameters"
   OrdersTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
@@ -628,29 +633,29 @@ Resources:
           Essential: true
           Secrets:
             -
+              Name: "SPRING_DATASOURCE_WRITER_URL"
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/orders-global-db-cluster-Hostname${Env}"
+            -
+              Name: "SPRING_DATASOURCE_READER_URL"
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/orders-global-db-cluster-Hostname${Env}"
+            -
               Name: "SPRING_DATASOURCE_WRITER_USERNAME"
-              ValueFrom: !Sub "${OrdersSecret}:username::"
+              ValueFrom: !Sub "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:username::"
             -
               Name: "SPRING_DATASOURCE_READER_USERNAME"
-              ValueFrom: !Sub "${OrdersSecret}:username::"
+              ValueFrom: !Sub "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:username::"
             - 
               Name: "SPRING_RABBITMQ_USER"
               ValueFrom: !Sub "${MqSecret}:username::"
-            -
-              Name: "SPRING_DATASOURCE_WRITER_URL"
-              ValueFrom: !Sub "${OrdersSecret}:host::"
-            -
-              Name: "SPRING_DATASOURCE_READER_URL"
-              ValueFrom: !Sub "${OrdersSecret}:host::"
             -
               Name: "SPRING_RABBITMQ_ADDRESSES"
               ValueFrom: !Sub "${MqSecret}:host::"
             -
               Name: "SPRING_DATASOURCE_WRITER_PASSWORD"
-              ValueFrom: !Sub "${OrdersSecret}:password::"
+              ValueFrom: !Sub "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:password::"
             -
               Name: "SPRING_DATASOURCE_READER_PASSWORD"
-              ValueFrom: !Sub "${OrdersSecret}:password::"
+              ValueFrom: !Sub "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:password::"
             - 
               Name: "SPRING_RABBITMQ_PASSWORD"
               ValueFrom: !Sub "${MqSecret}:password::"
@@ -795,7 +800,7 @@ Resources:
                   - "logs:PutLogEvents"
               - Effect: "Allow"
                 Resource: 
-                  - !Ref CatalogSecret
+                  - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/*'
                 Action:
                   - "secretsmanager:GetSecretValue"
               - Effect: Allow
@@ -803,6 +808,11 @@ Resources:
                   - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}"
                 Action: 
                   - "kms:Decrypt*"
+              - Effect: "Allow"
+                Resource: 
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*'
+                Action:
+                  - "ssm:GetParameters"
   CatalogTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
@@ -834,16 +844,16 @@ Resources:
           Secrets:
             -
               Name: "DB_ENDPOINT"
-              ValueFrom: !Sub "${CatalogSecret}:host::"
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/catalog-global-db-cluster-Hostname${Env}"
             -
               Name: "DB_READ_ENDPOINT"
-              ValueFrom: !Sub "${CatalogSecret}:host::"
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/catalog-global-db-cluster-Hostname${Env}"
             -
               Name: "DB_USER"
-              ValueFrom: !Sub "${CatalogSecret}:username::"
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/catalog-global-db-cluster-UserCredentials${Env}:username::"
             -
               Name: "DB_PASSWORD"
-              ValueFrom: !Sub "${CatalogSecret}:password::"
+              ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/catalog-global-db-cluster-UserCredentials${Env}:password::"
           LogConfiguration:
             LogDriver: awslogs
             Options:
