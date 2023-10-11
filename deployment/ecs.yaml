@@ -538,7 +538,7 @@ Resources:
     Properties:
       ServiceName: !Sub carts${Env}
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1
@@ -670,7 +670,7 @@ Resources:
     Properties:
       ServiceName: !Sub orders${Env}
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1
@@ -745,7 +745,7 @@ Resources:
     Properties:
       ServiceName: !Sub assets${Env}
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1
@@ -865,7 +865,7 @@ Resources:
     Properties:
       ServiceName: !Sub catalog${Env}
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1
@@ -931,7 +931,7 @@ Resources:
             - ContainerPort: 8080
               Name: checkout
               AppProtocol: http
-          Image: !Sub "public.ecr.aws/aws-containers/retail-store-sample-checkout:0.5.0"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:latest"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -953,7 +953,7 @@ Resources:
     Properties:
       ServiceName: !Sub checkout${Env}
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1
@@ -1050,7 +1050,7 @@ Resources:
           ContainerName: ui 
           ContainerPort: 8080
       CapacityProviderStrategy:
-        - CapacityProvider: FARGATE
+        - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
       DesiredCount: 1

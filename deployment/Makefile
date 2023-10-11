@@ -22,22 +22,36 @@ create-peer:
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-build-catalog-primary: primary_infrastructure
-	@cd ../source/catalog/; docker build -t catalog${ENV} .
+ecr-login:
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+
+build-catalog-primary: primary_infrastructure ecr-login
+	@cd ../source/catalog/; docker build -t catalog${ENV} .
+# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
 	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
 
-build-catalog-standby: standby_infrastructure
-	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
+build-catalog-standby: standby_infrastructure ecr-login
+# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
+
+build-checkout-primary: primary_infrastructure ecr-login
+	@cd ../source/checkout/; docker build -t checkout${ENV} .
+# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+	docker tag checkout${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:latest
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:latest
+
+build-checkout-standby: standby_infrastructure ecr-login
+# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
+	docker tag checkout${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:latest
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:latest
 
 primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: build-catalog-primary primary_region_catalog-db primary_region_orders-db
+primary_ecs: build-catalog-primary build-checkout-primary primary_region_catalog-db primary_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -45,7 +59,7 @@ standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_ecs: build-catalog-standby standby_region_catalog-db standby_region_orders-db
+standby_ecs: build-catalog-standby build-checkout-standby standby_region_catalog-db standby_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -61,23 +75,27 @@ canaries_standby: global_routing
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
 
 primary_region_catalog-db: primary_infrastructure
+	@echo "Creating Catalog Database in ${PRIMARY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog DatabaseName=catalog
 
 standby_region_catalog-db: standby_infrastructure primary_region_catalog-db
 	$(eval result:=$(shell aws ssm get-parameter --name catalog-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
+	@echo "Creating Catalog Database in ${STANDBY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog DBSecretArn=${result} DatabaseName=catalog
 
 primary_region_orders-db: primary_infrastructure
+	@echo "Creating Orders Database in ${PRIMARY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders DatabaseName=orders
 
 standby_region_orders-db: standby_infrastructure primary_region_orders-db
 	$(eval result:=$(shell aws ssm get-parameter --name orders-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
+	@echo "Creating Orders Database in ${STANDBY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders DBSecretArn=${result} DatabaseName=orders
@@ -95,10 +113,12 @@ destroy-all: destroy-peer
 destroy-ecr-primary: destroy-apps-primary
 	@echo "Deleting ECR Repos..."
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
+	@aws ecr delete-repository --force --repository-name checkout${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
 
 destroy-ecr-standby: destroy-apps-standby
 	@echo "Deleting ECR Repos..."
 	@aws ecr delete-repository --force --repository-name catalog${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
+	@aws ecr delete-repository --force --repository-name checkout${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
 destroy-global_routing: destroy-canaries-standby destroy-canaries-primary
 	@echo "Deleting global routing stack..."
