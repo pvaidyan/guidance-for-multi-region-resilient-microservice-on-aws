@@ -24,6 +24,7 @@ create-peer:
 
 ecr-login:
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 
 build-catalog-primary: primary_infrastructure ecr-login
 	@cd ../source/catalog/; docker build -t catalog${ENV} .
@@ -65,7 +66,7 @@ standby_ecs: build-catalog-standby build-checkout-standby standby_region_catalog
 
 global_routing: standby_ecs primary_ecs
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
-	--stack-name gr${ENV} --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
+	--stack-name gr${ENV} --capabilities CAPABILITY_IAM --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
 
 canaries_primary: global_routing
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
