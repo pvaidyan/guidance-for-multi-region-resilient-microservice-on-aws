@@ -63,85 +63,7 @@ Resources:
         - 
           Username: mq
           Password: !Sub '{{resolve:secretsmanager:${MqPassword}}}'
-
-  # CatalogDbSubnetGroup:
-  #   Type: "AWS::RDS::DBSubnetGroup"
-  #   Properties:
-  #     DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-catalog"
-  #     SubnetIds: 
-  #       - !Sub '{{resolve:ssm:Subnet1${Env}}}'
-  #       - !Sub '{{resolve:ssm:Subnet2${Env}}}'
-  #       - !Sub '{{resolve:ssm:Subnet3${Env}}}'
-
-  # OrdersDbSubnetGroup:
-  #   Type: "AWS::RDS::DBSubnetGroup"
-  #   Properties:
-  #     DBSubnetGroupDescription: "For Aurora cluster retail-store-ar-orders"
-  #     SubnetIds: 
-  #       - !Sub '{{resolve:ssm:Subnet1${Env}}}'
-  #       - !Sub '{{resolve:ssm:Subnet2${Env}}}'
-  #       - !Sub '{{resolve:ssm:Subnet3${Env}}}'
-
-  # CatalogDB:
-  #   Type: "AWS::RDS::DBCluster"
-  #   Properties:
-  #     BackupRetentionPeriod: 7
-  #     DatabaseName: catalog
-  #     DBClusterIdentifier: !Sub 'retail-store-ar-catalog${Env}'
-  #     DBSubnetGroupName: !Ref CatalogDbSubnetGroup
-  #     Engine: "aurora-mysql"
-  #     Port: 3306
-  #     MasterUsername: "root"
-  #     MasterUserPassword: !Sub '{{resolve:secretsmanager:${CatalogDbPassword}}}'
-  #     PreferredBackupWindow: "02:00-03:00"
-  #     PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
-  #     VpcSecurityGroupIds: 
-  #       - !Sub '{{resolve:ssm:catalog-aurora-mysql-sg-${AWS::Region}${Env}}}'
-  #     StorageEncrypted: true
-  #     KmsKeyId: !Ref KmsKey
-  #     EnableIAMDatabaseAuthentication: false
-  #     DeletionProtection: false
-  #     EnableHttpEndpoint: false
-  #     ServerlessV2ScalingConfiguration:
-  #       MinCapacity: 1
-  #       MaxCapacity: 8
-  # CatalogDbInstance:
-  #   Type: "AWS::RDS::DBInstance"
-  #   Properties:
-  #     DBInstanceClass: "db.serverless"
-  #     Engine: "aurora-mysql"
-  #     DBClusterIdentifier: !Ref CatalogDB
-
-  # OrdersDB:
-  #   Type: "AWS::RDS::DBCluster"
-  #   Properties:
-  #     BackupRetentionPeriod: 7
-  #     DatabaseName: orders      
-  #     DBClusterIdentifier: !Sub 'retail-store-ar-orders${Env}'
-  #     DBSubnetGroupName: !Ref OrdersDbSubnetGroup
-  #     Engine: "aurora-mysql"
-  #     Port: 3306
-  #     MasterUsername: "root"
-  #     MasterUserPassword: !Sub '{{resolve:secretsmanager:${OrdersDbPassword}}}'
-  #     PreferredBackupWindow: "02:00-03:00"
-  #     PreferredMaintenanceWindow: "sun:05:00-sun:06:00"
-  #     VpcSecurityGroupIds: 
-  #       - !Ref sgOrdersDB
-  #     StorageEncrypted: true
-  #     KmsKeyId: !Ref KmsKey
-  #     EnableIAMDatabaseAuthentication: false
-  #     DeletionProtection: false
-  #     EnableHttpEndpoint: false
-  #     ServerlessV2ScalingConfiguration:
-  #       MinCapacity: 1
-  #       MaxCapacity: 8
-  # OrdersDbInstance:
-  #   Type: "AWS::RDS::DBInstance"
-  #   Properties:
-  #     DBInstanceClass: "db.serverless"
-  #     Engine: "aurora-mysql"
-  #     DBClusterIdentifier: !Ref OrdersDB
-    
+  
   CartsTable:
     Type: "AWS::DynamoDB::Table"
     Properties:
@@ -379,20 +301,7 @@ Resources:
       MultiRegion: false
   
   #Secrets
-  # OrdersDbPassword:
-  #   Type: "AWS::SecretsManager::Secret"
-  #   Properties:
-  #     Name: !Sub 'retail-store-ar-orders-db-password${Env}'
-  #     KmsKeyId: !Ref KmsKey
-  #     GenerateSecretString: 
-  #       ExcludePunctuation: true
-  # OrdersSecret:
-  #   DependsOn: OrdersDbPassword
-  #   Type: "AWS::SecretsManager::Secret"
-  #   Properties:
-  #     Name: !Sub "retail-store-ar-orders-db${Env}"
-  #     KmsKeyId: !Ref KmsKey
-  #     SecretString: !Sub "{\"host\":\"jdbc:mariadb://${OrdersDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}/orders\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-orders-db-password${Env}}}\",\"username\":\"root\"}"
+
   MqSecret:
     DependsOn: 
       - MqPassword 
@@ -401,6 +310,7 @@ Resources:
       Name: !Sub 'retail-store-ar-mq${Env}'
       KmsKeyId: !Ref KmsKey
       SecretString: !Sub "{\"host\":\"amqp+ssl://${OrdersMqBroker}-1.mq.${AWS::Region}.amazonaws.com:5671\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-mq-password${Env}}}\",\"username\":\"default_mq_user\"}"
+  
   MqPassword:
     Type: "AWS::SecretsManager::Secret"
     Properties:
@@ -408,19 +318,6 @@ Resources:
       KmsKeyId: !Ref KmsKey
       GenerateSecretString: 
         ExcludePunctuation: true
-  # CatalogDbPassword:
-  #   Type: "AWS::SecretsManager::Secret"
-  #   Properties:
-  #     Name: !Sub 'retail-store-ar-catalog-db-password${Env}'
-  #     KmsKeyId: !Ref KmsKey
-  #     GenerateSecretString: 
-  #       ExcludePunctuation: true
-  # CatalogSecret:
-  #   Type: "AWS::SecretsManager::Secret"
-  #   Properties:
-  #     Name: !Sub 'retail-store-ar-catalog-db${Env}'
-  #     KmsKeyId: !Ref KmsKey
-  #     SecretString: !Sub "{\"host\":\"${CatalogDB.Endpoint.Address}:${CatalogDB.Endpoint.Port}\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-catalog-db-password${Env}}}\",\"username\":\"root\"}"
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -541,7 +438,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref CartsTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -673,7 +570,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref OrdersTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -748,7 +645,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref AssetsTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -868,7 +765,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref CatalogTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -956,7 +853,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref CheckoutTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -1053,7 +950,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 1
+      DesiredCount: 3
       TaskDefinition: !Ref UiTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true

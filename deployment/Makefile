@@ -13,7 +13,8 @@ DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
 deploy: deploy-ecs
-deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing canaries_primary canaries_standby
+deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
+	canaries_primary canaries_standby failover_primary failover_standby
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 create-peer:
@@ -24,6 +25,7 @@ create-peer:
 
 ecr-login:
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 
 build-catalog-primary: primary_infrastructure ecr-login
 	@cd ../source/catalog/; docker build -t catalog${ENV} .
@@ -65,7 +67,7 @@ standby_ecs: build-catalog-standby build-checkout-standby standby_region_catalog
 
 global_routing: standby_ecs primary_ecs
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
-	--stack-name gr${ENV} --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
+	--stack-name gr${ENV} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
 
 canaries_primary: global_routing
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
@@ -73,6 +75,13 @@ canaries_primary: global_routing
 canaries_standby: global_routing
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
 	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
+
+failover_primary: global_routing
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./failover.yaml \
+	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
+failover_standby: global_routing
+	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./failover.yaml \
+	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
 
 primary_region_catalog-db: primary_infrastructure
 	@echo "Creating Catalog Database in ${PRIMARY_REGION}..."
@@ -172,6 +181,16 @@ destroy-canaries-primary:
 	@echo "Deleting canaries in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name canaries${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name canaries${ENV} --region ${PRIMARY_REGION}
+
+destroy-failover-standby:
+	@echo "Deleting failover in ${STANDBY_REGION}..."
+	@aws cloudformation delete-stack --stack-name failover${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name failover${ENV} --region ${STANDBY_REGION}
+
+destroy-failover-primary:
+	@echo "Deleting failover in ${PRIMARY_REGION}..."
+	@aws cloudformation delete-stack --stack-name failover${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name failover${ENV} --region ${PRIMARY_REGION}
 
 destroy-databases-primary: destroy-apps-primary destroy-databases-standby
 	@echo "Deleting databases in ${PRIMARY_REGION}..."
