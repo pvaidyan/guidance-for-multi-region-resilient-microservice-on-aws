@@ -79,7 +79,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -153,7 +152,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -227,7 +225,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -301,7 +298,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -375,7 +371,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -449,7 +444,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -523,7 +517,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -597,7 +590,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
@@ -671,7 +663,6 @@ Resources:
           RuntimeVersion: syn-python-selenium-2.0
           Schedule: 
             Expression: 'rate(1 minute)' 
-            DurationInSeconds: 30
           RunConfig: 
             TimeoutInSeconds: 20
           FailureRetentionPeriod: 1
