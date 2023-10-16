@@ -281,6 +281,29 @@ Resources:
       arcClusterArn: !Ref ArcCluster
       arcRoutingControlArn: !Ref ArcRoutingControlStandby
       arcClusterEndpointsSecret: !Sub ArcClusterEndpoints${Env}
+
+  ##### Regional Failover Automation Role #######
+  AutomationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ssm.amazonaws.com
+          Action: sts:AssumeRole
+          Condition:
+            StringEquals:
+              aws:SourceAccount: !Sub ${AWS::AccountId}
+            ArnLike:
+              aws:SourceArn: !Sub arn:aws:ssm:*:${AWS::AccountId}:automation-execution/*
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      Path: "/"
+      RoleName: !Sub AutomationServiceRole${Env}
+
   HostedZone:
     Type: AWS::Route53::HostedZone
     Properties:
