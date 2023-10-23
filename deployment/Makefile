@@ -18,6 +18,10 @@ deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_in
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 create-peer:
+	$(eval result:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForECS'])"))
+	@if [ "$(result)" -eq "0" ]; then \
+		aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --no-cli-pager; \
+	fi
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
