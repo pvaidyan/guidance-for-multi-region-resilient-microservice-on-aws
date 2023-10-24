@@ -63,45 +63,6 @@ Resources:
         - 
           Username: mq
           Password: !Sub '{{resolve:secretsmanager:${MqPassword}}}'
-  
-  CartsTable:
-    Type: "AWS::DynamoDB::Table"
-    Properties:
-      AttributeDefinitions: 
-        - 
-          AttributeName: "customerId"
-          AttributeType: "S"
-        - 
-          AttributeName: "id"
-          AttributeType: "S"
-      BillingMode: "PAY_PER_REQUEST"
-      TableName: !Sub "retail-store-ar-carts${Env}"
-      Tags: 
-        - 
-          Key: "environment-name"
-          Value: "retail-store-ar"
-        - 
-          Key: "created-by"
-          Value: "retail-store-sample-app"
-        - 
-          Key: "Name"
-          Value: "retail-store-ar-carts"
-      KeySchema: 
-        - 
-          AttributeName: "id"
-          KeyType: "HASH"
-      GlobalSecondaryIndexes: 
-        - 
-          IndexName: "idx_global_customerId"
-          KeySchema: 
-            - 
-              AttributeName: "customerId"
-              KeyType: "HASH"
-          Projection: 
-              ProjectionType: "ALL"
-          ProvisionedThroughput: 
-              ReadCapacityUnits: 0
-              WriteCapacityUnits: 0
 
   CheckoutEcCluster:
     Type: "AWS::ElastiCache::CacheCluster"
@@ -392,8 +353,10 @@ Resources:
                   - "logs:PutLogEvents"
               - Effect: "Allow"
                 Resource: 
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CartsTable}
-                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CartsTable}/index/*
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index/*'
                 Action:
                   - "dynamodb:*"
   CartsTaskDefinition:
@@ -423,7 +386,7 @@ Resources:
           Environment:
             -
               Name: CARTS_DYNAMODB_TABLENAME
-              Value: !Ref CartsTable
+              Value: !Sub '{{resolve:secretsmanager:cartsTable${Env}Secret}}'
           LogConfiguration:
             LogDriver: awslogs
             Options:
