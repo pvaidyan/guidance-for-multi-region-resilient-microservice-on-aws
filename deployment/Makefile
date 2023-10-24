@@ -75,11 +75,22 @@ build-carts-standby: standby_infrastructure ecr-login
 	docker tag carts${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:latest
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:latest
 
+build-assets-primary: primary_infrastructure ecr-login
+	@cd ../source/assets/; docker build -t assets${ENV} .
+# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+	docker tag assets${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:latest
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:latest
+
+build-assets-standby: standby_infrastructure ecr-login
+# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
+	docker tag assets${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:latest
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:latest
+
 primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary primary_region_catalog-db primary_region_orders-db carts-db
+primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary build-assets-primary primary_region_catalog-db primary_region_orders-db carts-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -87,7 +98,7 @@ standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build-carts-standby standby_region_catalog-db standby_region_orders-db
+standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build-carts-standby build-assets-standby standby_region_catalog-db standby_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -161,6 +172,7 @@ destroy-ecr-primary: destroy-apps-primary
 	@aws ecr delete-repository --force --repository-name checkout${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name ui${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name carts${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
+	@aws ecr delete-repository --force --repository-name assets${ENV} --region $(PRIMARY_REGION) --no-cli-pager || true
 
 destroy-ecr-standby: destroy-apps-standby
 	@echo "Deleting ECR Repos..."
@@ -168,6 +180,7 @@ destroy-ecr-standby: destroy-apps-standby
 	@aws ecr delete-repository --force --repository-name checkout${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name ui${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name carts${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
+	@aws ecr delete-repository --force --repository-name assets${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
 destroy-global_routing: destroy-canaries-standby destroy-canaries-primary
 	@echo "Deleting global routing stack..."

@@ -591,7 +591,7 @@ Resources:
             - ContainerPort: 8080
               Name: assets
               AppProtocol: http
-          Image: public.ecr.aws/aws-containers/retail-store-sample-assets:0.5.0
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:latest"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
