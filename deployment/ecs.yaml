@@ -912,7 +912,7 @@ Resources:
             - ContainerPort: 8080
               Name: ui
               AppProtocol: http
-          Image: !Sub "public.ecr.aws/aws-containers/retail-store-sample-ui:0.5.0"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:latest"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
