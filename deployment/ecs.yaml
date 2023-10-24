@@ -379,14 +379,15 @@ Resources:
             - ContainerPort: 8080
               Name: carts
               AppProtocol: http
-          Image: public.ecr.aws/aws-containers/retail-store-sample-cart:0.5.0
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:latest"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
           Environment:
-            -
-              Name: CARTS_DYNAMODB_TABLENAME
+            - Name: CARTS_DYNAMODB_TABLENAME
               Value: !Sub '{{resolve:secretsmanager:cartsTable${Env}Secret}}'
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: dynamodb
           LogConfiguration:
             LogDriver: awslogs
             Options:
