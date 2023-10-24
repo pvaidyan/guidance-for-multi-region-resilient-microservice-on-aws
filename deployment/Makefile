@@ -68,7 +68,7 @@ primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
-primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary primary_region_catalog-db primary_region_orders-db
+primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary primary_region_catalog-db primary_region_orders-db carts-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
@@ -123,6 +123,16 @@ standby_region_orders-db: standby_infrastructure primary_region_orders-db
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders DBSecretArn=${result} DatabaseName=orders
+
+carts-db: primary_infrastructure
+	$(eval resultDDB:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForDynamoDBReplication'])"))
+	@if [ "$(resultDDB)" -eq "0" ]; then \
+    		aws iam create-service-linked-role --aws-service-name replication.dynamodb.amazonaws.com --no-cli-pager; \
+    fi
+	@echo "Creating Carts Global Table in ${PRIMARY_REGION} and ${STANDBY_REGION}..."
+	@aws cloudformation deploy --template ./database/dynamodb/global-table.yml \
+	--region ${PRIMARY_REGION} --stack-name carts-db-stack${ENV} --capabilities CAPABILITY_IAM \
+	--parameter-overrides Env=${ENV} NamingPrefix=carts
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
@@ -213,9 +223,11 @@ destroy-databases-primary: destroy-apps-primary destroy-databases-standby
 	@echo "Deleting databases in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name catalog-db-stack${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name orders-db-stack${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation delete-stack --stack-name carts-db-stack${ENV} --region ${PRIMARY_REGION}
 
 	@aws cloudformation wait stack-delete-complete --stack-name catalog-db-stack${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name orders-db-stack${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name carts-db-stack${ENV} --region ${PRIMARY_REGION}
 
 destroy-databases-standby: destroy-apps-standby 
 	@echo "Deleting databases in ${STANDBY_REGION}..."
