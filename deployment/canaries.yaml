@@ -859,6 +859,12 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action:
                   - 'lambda:DeleteFunction'
                   - 's3:DeleteObject'
                   - 'logs:DeleteLogGroup'
