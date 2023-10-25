@@ -488,7 +488,7 @@ Resources:
             - ContainerPort: 8080
               AppProtocol: http
               Name: orders
-          Image: public.ecr.aws/aws-containers/retail-store-sample-orders:0.5.0
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:latest"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -802,7 +802,7 @@ Resources:
               Value: http://orders:8080
             - 
               Name: "REDIS_URL"
-              Value: !Sub "redis://CheckoutEcCluster.RedisEndpoint.Address/CheckoutEcCluster.RedisEndpoint.Port"
+              Value: !Sub "redis://${CheckoutEcCluster.RedisEndpoint.Address}:${CheckoutEcCluster.RedisEndpoint.Port}"
           LogConfiguration:
             LogDriver: awslogs
             Options:
