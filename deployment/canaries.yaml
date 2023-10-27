@@ -768,7 +768,7 @@ Resources:
                 if event['RequestType'] == 'Delete':
 
                   try:
-                    # Find Lambada name corresponding to your Canary name
+                    print('Finding Lambada name corresponding to your Canary name...')
                     Canarydetails = synthetics.get_canary(Name=CanaryName)
                     CanaryLambdaName = Canarydetails['Canary']['EngineArn'].split(':')[-2]
                     CanaryArtifactBucket = Canarydetails['Canary']['ArtifactS3Location']
@@ -777,15 +777,15 @@ Resources:
                     Errors.append('Get-Canary failed: '+str(e))
                     pass
                   try:
-                    #delete Canary Lambda
+                    print('delete Canary Lambda: ' + CanaryLambdaName)
                     lambdaClient.delete_function(FunctionName=CanaryLambdaName)
                   except Exception as e:
                     print('Deleting Canary Lambda failed: '+str(e))
                     Errors.append('Deleting Canary Lambda failed: '+str(e))
                     pass
                   try:
-                    #delete Canary log group
                     CanaryLogGroup='/aws/lambda/'+CanaryLambdaName
+                    print('delete Canary log group: ' + CanaryLogGroup)
                     logs.delete_log_group(logGroupName=CanaryLogGroup)
                   except Exception as e:
                     print('Deleting Canary logs failed: '+str(e))
@@ -802,29 +802,12 @@ Resources:
                     for alarm in Alarms['MetricAlarms']:
                       metricAlarms.append(alarm['AlarmName'])
                     if metricAlarms:
+                      print('delete alarm: ' + metricAlarms)
                       cloudwatch.delete_alarms(AlarmNames=metricAlarms)
                   except Exception as e:
                     print('Deleting Canary Alarm failed: '+str(e))
                     Errors.append('Deleting Canary Alarm failed: '+str(e))
 
-                  #Find Bucket and delete canary objects under prefix if exist
-                  try:
-                    bucket = s3.Bucket(bucketName)
-                    #Check if there is prefix in the Canary artifact bucket
-                    if (CanaryArtifactBucket.find(bucketName+'/') != -1):
-                      #search for objects under prefix
-                      objects = bucket.objects.filter(Prefix=CanaryArtifactBucket.split(bucketName+'/')[1])
-                    else:
-                      #If no prefix, search for all objects under the bucket
-                      objects = bucket.objects.filter()
-
-                    for obj in objects:
-                      # delete objects with canary prefix
-                      s3.Object(bucket.name, obj.key).delete()
-                  except Exception as e:
-                    print('Deleting S3 Objects failed: '+str(e))
-                    Errors.append('Deleting S3 Objects failed: '+str(e))
-                    pass
                 #IF any of dependency resources was not deleted raise exception to send custom error message to stack
                 if Errors:
                   raise Exception(Errors)
