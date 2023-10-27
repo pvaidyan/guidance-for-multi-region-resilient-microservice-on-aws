@@ -22,6 +22,7 @@ import com.amazon.sample.ui.clients.carts.api.CartsApi;
 import com.amazon.sample.ui.clients.carts.api.ItemsApi;
 import com.amazon.sample.ui.clients.catalog.api.CatalogApi;
 import com.amazon.sample.ui.clients.checkout.api.CheckoutApi;
+import com.amazon.sample.ui.clients.orders.api.OrdersApi;
 import com.amazon.sample.ui.services.assets.AssetsService;
 import com.amazon.sample.ui.services.assets.MockAssetsService;
 import com.amazon.sample.ui.services.assets.ProxyingAssetsService;
@@ -37,6 +38,9 @@ import com.amazon.sample.ui.services.checkout.MockCheckoutService;
 import com.amazon.sample.ui.services.checkout.WebClientCheckoutService;
 import com.amazon.sample.ui.services.checkout.model.CheckoutMapper;
 
+import com.amazon.sample.ui.services.orders.MockOrdersService;
+import com.amazon.sample.ui.services.orders.OrdersService;
+import com.amazon.sample.ui.services.orders.WebClientOrdersService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,6 +58,18 @@ public class StoreServices {
     @ConditionalOnProperty(prefix = "endpoints", name = "catalog", havingValue = "false", matchIfMissing = true)
     public CatalogService mockCatalogService() {
         return new MockCatalogService();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "endpoints", name = "orders")
+    public OrdersService ordersService(OrdersApi ordersApi, CartsService cartsService) {
+        return new WebClientOrdersService(ordersApi, cartsService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "endpoints", name = "catalog", havingValue = "false", matchIfMissing = true)
+    public OrdersService mockOrdersService() {
+        return new MockOrdersService();
     }
 
     @Bean

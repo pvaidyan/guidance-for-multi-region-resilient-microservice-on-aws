@@ -19,10 +19,12 @@
 package com.amazon.sample.ui.services.orders;
 
 import com.amazon.sample.ui.clients.orders.api.OrdersApi;
+import com.amazon.sample.ui.clients.orders.model.ExistingOrder;
 import com.amazon.sample.ui.clients.orders.model.OrderItem;
 import com.amazon.sample.ui.services.carts.CartsService;
 import com.amazon.sample.ui.services.carts.model.CartItem;
 import com.amazon.sample.ui.services.orders.model.Order;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class WebClientOrdersService implements OrdersService {
@@ -57,5 +59,10 @@ public class WebClientOrdersService implements OrdersService {
                     return this.ordersApi.createOrder(createOrderRequest);
                 })
                 .map(o -> new Order(o.getId(), o.getEmail()));
+    }
+
+    @Override
+    public Flux<ExistingOrder> fetchOrders() {
+        return this.ordersApi.listOrders();
     }
 }
