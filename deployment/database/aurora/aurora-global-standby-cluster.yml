@@ -276,6 +276,17 @@ Resources:
     Type: Custom::InvokeCustomLambda
     Properties:
       ServiceToken: !GetAtt CustomBackedLambda.Arn
+
+  DBClusterArn:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}${Env}'
+      Description: !Sub 'DBCluster Arn for ${NamingPrefix}'
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !GetAtt DBCluster.DBClusterArn
+      ReplicaRegions:
+        - Region: us-east-1
+
 Outputs:
   DBEndpoint:
     Value: !GetAtt DBCluster.Endpoint.Address

@@ -303,7 +303,22 @@ Resources:
       - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
       Path: "/"
       RoleName: !Sub AutomationServiceRole${Env}
-
+      Policies:
+        -
+          PolicyName: AuroraFailover
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "rds:FailoverGlobalCluster"
+                Resource: 
+                  - !Sub 'arn:aws:rds::${AWS::AccountId}:global-cluster:catalog-global-db-cluster${Env}'
+                  - !Sub 'arn:aws:rds::${AWS::AccountId}:global-cluster:orders-global-db-cluster${Env}'
+                  - !Sub '{{resolve:secretsmanager:mr-app/orders-${StandbyRegion}-global-db-cluster${Env}}}'
+                  - !Sub '{{resolve:secretsmanager:mr-app/orders-${PrimaryRegion}-global-db-cluster${Env}}}'
+                  - !Sub '{{resolve:secretsmanager:mr-app/catalog-${StandbyRegion}-global-db-cluster${Env}}}'
+                  - !Sub '{{resolve:secretsmanager:mr-app/catalog-${PrimaryRegion}-global-db-cluster${Env}}}'
   HostedZone:
     Type: AWS::Route53::HostedZone
     Properties:
