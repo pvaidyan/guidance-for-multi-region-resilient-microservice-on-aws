@@ -291,7 +291,7 @@ Resources:
   Alb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Scheme: internet-facing
+      Scheme: internal
       SecurityGroups: 
         - !Ref sgAlb
       Subnets:
