@@ -1,10 +1,15 @@
 # Change these for your environment
-ENV="-dev0"
+ENV=-dev0
 PRIMARY_REGION=us-east-1
 STANDBY_REGION=us-west-2
 ####
 
 ####
+# Generate Tag basedon git commit ref
+TAG=$(shell git rev-parse --short HEAD)
+# Generate Tag based on date hash
+# TAG=$(date|sum|awk '{print $1}')
+
 AWS_ACCOUNT_ID := $(shell aws sts get-caller-identity --output text|awk '{print $$1}')
 AWS_PAGER:=''
 .DEFAULT_GOAL := test-creds
@@ -28,74 +33,63 @@ create-peer:
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 ecr-login:
+
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
 	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 
 build-catalog-primary: primary_infrastructure ecr-login
-	@cd ../source/catalog/; docker build -t catalog${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:latest
+	@cd ../source/catalog/; docker build -t catalog${ENV}:${TAG} .
+	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
 build-catalog-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag catalog${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:latest
+	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
 build-checkout-primary: primary_infrastructure ecr-login
-	@cd ../source/checkout/; docker build -t checkout${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag checkout${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:latest
+	@cd ../source/checkout/; docker build -t checkout${ENV}:${TAG} .
+	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
 build-checkout-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag checkout${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:latest
+	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
 build-ui-primary: primary_infrastructure ecr-login
-	@cd ../source/ui/; docker build -t ui${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag ui${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:latest
+	@cd ../source/ui/; docker build -t ui${ENV}:${TAG} .
+	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
 build-ui-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag ui${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:latest
+	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
 build-carts-primary: primary_infrastructure ecr-login
-	@cd ../source/cart/; docker build -t carts${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag carts${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:latest
+	@cd ../source/cart/; docker build -t carts${ENV}:${TAG} .
+	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
 build-carts-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag carts${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:latest
+	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
 build-assets-primary: primary_infrastructure ecr-login
-	@cd ../source/assets/; docker build -t assets${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag assets${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:latest
+	@cd ../source/assets/; docker build -t assets${ENV}:${TAG} .
+	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
 build-assets-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag assets${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:latest
+	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
 build-orders-primary: primary_infrastructure ecr-login
-	@cd ../source/orders/; docker build -t orders${ENV} .
-# (aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
-	docker tag orders${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:latest
+	@cd ../source/orders/; docker build -t orders${ENV}:${TAG} .
+	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
 build-orders-standby: standby_infrastructure ecr-login
-# (aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
-	docker tag orders${ENV}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:latest
-	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:latest
+	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
+	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
 primary_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
@@ -103,7 +97,7 @@ primary_infrastructure: create-peer
 
 primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary build-assets-primary build-orders-primary primary_region_catalog-db primary_region_orders-db carts-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
 
 standby_infrastructure: create-peer
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
@@ -111,7 +105,7 @@ standby_infrastructure: create-peer
 
 standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build-carts-standby build-assets-standby build-orders-standby standby_region_catalog-db standby_region_orders-db
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
 
 global_routing: standby_ecs primary_ecs
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
