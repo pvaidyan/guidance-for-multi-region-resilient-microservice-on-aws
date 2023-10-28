@@ -14,6 +14,9 @@ Parameters:
     Type: String
     Description: Enter the Standby Region
     Default: "us-west-2"
+  Tag:
+    Type: String
+    Description: Docker image tag
 
 Conditions:
   isPrimary: !Equals
@@ -379,7 +382,7 @@ Resources:
             - ContainerPort: 8080
               Name: carts
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -488,7 +491,7 @@ Resources:
             - ContainerPort: 8080
               AppProtocol: http
               Name: orders
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -591,7 +594,7 @@ Resources:
             - ContainerPort: 8080
               Name: assets
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -694,7 +697,7 @@ Resources:
             - ContainerPort: 8080
               Name: catalog
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/catalog${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/catalog${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -792,7 +795,7 @@ Resources:
             - ContainerPort: 8080
               Name: checkout
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -876,7 +879,7 @@ Resources:
             - ContainerPort: 8080
               Name: ui
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
