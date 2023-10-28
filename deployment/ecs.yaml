@@ -295,9 +295,9 @@ Resources:
       SecurityGroups: 
         - !Ref sgAlb
       Subnets:
-        - !Sub '{{resolve:ssm:PubSubnet1${Env}}}'
-        - !Sub '{{resolve:ssm:PubSubnet2${Env}}}'
-        - !Sub '{{resolve:ssm:PubSubnet3${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
       Type: application
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
