@@ -18,9 +18,7 @@
                 <th>Email</th>
                 <th>First Name</th>
                 <th>Last Name</th>
-                <th>Item Price</th>
-                <th>Item Qty</th>
-                <th>Product Id</th>
+                <th>Created On</th>
             </tr>
             </thead>
             <tbody>
@@ -31,18 +29,14 @@
                     <td rowspan="${orders.items.size()}"><span th:text="${order.email}">Email</span></td>
                     <td rowspan="${orders.items.size()}"><span th:text="${order.firstName}">First Name</span></td>
                     <td rowspan="${orders.items.size()}"><span th:text="${order.lastName}">Last Name</span></td>
-                    <td><span th:text="${itemCount>0}?${order.items[0].price}:''">Item Price</span></td>
-                    <td><span th:text="${itemCount>0}?${order.items[0].quantity}:''">Item Qty</span></td>
-                    <td><span th:text="${itemCount>0}?${order.items[0].productId}:''">Product Id</span></td>
+                    <td rowspan="${orders.items.size()}"><span th:text="${order.createdOn}">Created On</span></td>
                 </tr>
                 <tr th:each="item,stats:${order.items}" th:if="${!stats.first}">
                     <td rowspan="${orders.items.size()}"><span th:text="${order.id}">Id</span></td>
                     <td rowspan="${orders.items.size()}"><span th:text="${order.email}">Email</span></td>
                     <td rowspan="${orders.items.size()}"><span th:text="${order.firstName}">First Name</span></td>
                     <td rowspan="${orders.items.size()}"><span th:text="${order.lastName}">Last Name</span></td>
-                    <td th:text="${item.price}"></td>
-                    <td th:text="${item.quantity}"></td>
-                    <td th:text="${item.productId}"></td>
+                    <td rowspan="${orders.items.size()}"><span th:text="${order.createdOn}">Created On</span></td>
                 </tr>
             </div>
             </tbody>

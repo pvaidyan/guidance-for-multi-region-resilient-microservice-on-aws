@@ -57,8 +57,7 @@ public class OrderController extends BaseController {
                           @RequestParam(required = false, defaultValue = "1") int page,
                           @RequestParam(required = false, defaultValue = "3") int size,
                           ServerHttpRequest request, Model model) {
-        Flux<ExistingOrder> orders = this.ordersService.fetchOrders();
-        model.addAttribute("orders", orders);
+        model.addAttribute("orders", this.ordersService.fetchOrders());
 
         populateCommon(request, model);
 

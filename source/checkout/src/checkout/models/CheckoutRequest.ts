@@ -45,4 +45,12 @@ export class CheckoutRequest {
   @IsOptional()
   deliveryOptionToken : string;
 
+  @IsString()
+  @IsOptional()
+  firstName: string;
+
+  @IsString()
+  @IsOptional()
+  lastName: string;
+
 }

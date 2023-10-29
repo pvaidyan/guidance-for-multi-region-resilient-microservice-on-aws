@@ -270,7 +270,7 @@ Resources:
     Properties:
       Name: !Sub 'retail-store-ar-mq${Env}'
       KmsKeyId: !Ref KmsKey
-      SecretString: !Sub "{\"host\":\"amqp+ssl://${OrdersMqBroker}-1.mq.${AWS::Region}.amazonaws.com:5671\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-mq-password${Env}}}\",\"username\":\"default_mq_user\"}"
+      SecretString: !Sub "{\"host\":\"amqps://${OrdersMqBroker}-1.mq.${AWS::Region}.amazonaws.com:5671\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-mq-password${Env}}}\",\"username\":\"default_mq_user\"}"
   
   MqPassword:
     Type: "AWS::SecretsManager::Secret"
@@ -492,6 +492,9 @@ Resources:
           Cpu: 0
           MemoryReservation: 50
           Essential: true
+          Environment:
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: mysql,rabbitmq
           Secrets:
             -
               Name: "SPRING_DATASOURCE_WRITER_URL"

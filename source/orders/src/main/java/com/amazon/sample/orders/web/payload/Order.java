@@ -20,6 +20,7 @@ package com.amazon.sample.orders.web.payload;
 
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -29,6 +30,8 @@ public class Order {
     private String lastName;
 
     private String email;
+
+    private String createdOn;
 
     private List<OrderItem> items;
 }

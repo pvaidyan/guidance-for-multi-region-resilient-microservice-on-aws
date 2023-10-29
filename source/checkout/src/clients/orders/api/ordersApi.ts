@@ -110,6 +110,8 @@ export class OrdersApi {
      * @param orderRequest orderRequest
      */
     public async createOrder (orderRequest: Order, options: {headers: {[name: string]: string}} = {headers: {}}) : Promise<{ response: http.IncomingMessage; body: ExistingOrder;  }> {
+        console.log(orderRequest);
+
         const localVarPath = this.basePath + '/orders';
         let localVarQueryParameters: any = {};
         let localVarHeaderParams: any = (<any>Object).assign({}, this._defaultHeaders);

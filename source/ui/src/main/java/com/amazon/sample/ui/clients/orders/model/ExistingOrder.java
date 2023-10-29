@@ -71,6 +71,20 @@ public class ExistingOrder {
   public static final String JSON_PROPERTY_LAST_NAME = "lastName";
   private String lastName;
 
+  private String createdOn;
+
+  public ExistingOrder createdOn(String createdOn) {
+    this.createdOn = createdOn;
+    return this;
+  }
+
+  public String getCreatedOn() {
+    return createdOn;
+  }
+
+  public void setCreatedOn(String createdOn) {
+    this.createdOn = createdOn;
+  }
 
   public ExistingOrder email(String email) {
     

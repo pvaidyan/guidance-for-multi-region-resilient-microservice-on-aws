@@ -22,6 +22,8 @@ import lombok.Data;
 import org.hibernate.annotations.GenericGenerator;
 
 import jakarta.persistence.*;
+
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +39,7 @@ public class OrderEntity {
     private String firstName;
     private String lastName;
     private String email;
+    private String createdOn;
 
     @OneToMany(
         mappedBy = "order",

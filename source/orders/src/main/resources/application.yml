@@ -6,3 +6,32 @@ management:
 
 server:
   port: ${port:8080}
+
+logging:
+  level:
+    root: debug
+
+hibernate:
+  dialect: org.hibernate.dialect.MariaDBDialect
+
+spring:
+  jpa:
+    generate-ddl: true
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  autoconfigure.exclude:
+  - org.springframework.boot.autoconfigure.jms.activemq.ActiveMQAutoConfiguration
+
+  datasource:
+    writer:
+      jdbc-url: ${spring.datasource.writer.url}
+      username:
+      password:
+      driverClassName: org.mariadb.jdbc.Driver
+
+    reader:
+      jdbc-url: ${spring.datasource.reader.url}
+      username:
+      password:
+      driverClassName: org.mariadb.jdbc.Driver

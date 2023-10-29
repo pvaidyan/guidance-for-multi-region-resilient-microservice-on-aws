@@ -24,9 +24,11 @@ import com.amazon.sample.ui.clients.orders.model.OrderItem;
 import com.amazon.sample.ui.services.carts.CartsService;
 import com.amazon.sample.ui.services.carts.model.CartItem;
 import com.amazon.sample.ui.services.orders.model.Order;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 public class WebClientOrdersService implements OrdersService {
 
     private OrdersApi ordersApi;
@@ -64,5 +66,6 @@ public class WebClientOrdersService implements OrdersService {
     @Override
     public Flux<ExistingOrder> fetchOrders() {
         return this.ordersApi.listOrders();
+
     }
 }

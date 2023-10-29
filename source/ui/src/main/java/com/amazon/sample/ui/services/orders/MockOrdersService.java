@@ -2,10 +2,12 @@ package com.amazon.sample.ui.services.orders;
 
 import com.amazon.sample.ui.clients.orders.model.ExistingOrder;
 import com.amazon.sample.ui.clients.orders.model.OrderItem;
-import com.amazon.sample.ui.services.catalog.model.ProductTag;
 import com.amazon.sample.ui.services.orders.model.Order;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.Collections;
 
 public class MockOrdersService implements OrdersService{
 
@@ -22,6 +24,7 @@ public class MockOrdersService implements OrdersService{
         order.setEmail("test@xyz.com");
         order.setFirstName("TEST");
         order.setLastName("TEST");
+        order.setCreatedOn(Instant.now().toString());
         OrderItem item = new OrderItem();
         item.setPrice(50);
         item.setQuantity(5);
