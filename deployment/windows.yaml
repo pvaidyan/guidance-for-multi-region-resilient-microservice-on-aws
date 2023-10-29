@@ -1,0 +1,127 @@
+# aws cloudformation deploy --template-file AD.yaml --stack-name AD --region us-east-2 --parameter-overrides KeyName=sbx0-keypair RestoreModePassword='Password!1' DomainDNSName=mlanza.org DomainNetBIOSName=mlanza SourceCidrForRDP=10.0.0.0/16 VpcId=vpc-09f279bd014bc995f SubnetId=subnet-0599abdc16332851e IamProfile='AmazonSSMRoleForInstancesQuickSetup'
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template creates a single Windows server to be used as a browser to test the application
+
+Parameters:
+  SubnetId:
+    Type: String 
+    Default: subnet-0fe9cb2b77316ff18
+  VpcId:
+    Type: String
+    Default: vpc-03d18f2f60402b8ee
+  InstanceType:
+    Description: Amazon EC2 instance type
+    Type: String
+    Default: t3.large
+    ConstraintDescription: must be a valid EC2 instance type.
+
+Resources:
+  IamInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+        Path: "/"
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        MaxSessionDuration: 3600
+        ManagedPolicyArns: 
+          - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+        Description: "SSM role for managed EC2 instances"
+  IamInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+        Path: "/"
+        InstanceProfileName: !Ref IamInstanceRole
+        Roles: 
+          - !Ref IamInstanceRole
+  WindowsPassword:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'windowspassword'
+      GenerateSecretString: 
+        ExcludePunctuation: true
+  WindowsInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            c:\cfn\cfn-hup.conf:
+              content: !Join
+                - ''
+                - - "[main]\n"
+                  - stack=
+                  - !Ref 'AWS::StackId'
+                  - "\n"
+                  - region=
+                  - !Ref 'AWS::Region'
+                  - "\n"
+            c:\cfn\hooks.d\cfn-auto-reloader.conf:
+              content: !Join
+                - ''
+                - - "[cfn-auto-reloader-hook]\n"
+                  - "triggers=post.update\n"
+                  - "path=Resources.WindowsInstance.Metadata.AWS::CloudFormation::Init\n"
+                  - 'action=cfn-init.exe -v -s '
+                  - !Ref 'AWS::StackId'
+                  - ' -r WindowsInstance'
+                  - ' --region '
+                  - !Ref 'AWS::Region'
+                  - "\n"
+            C:\cfn\RunCommand.bat:
+              content: "%~1\nIF %ERRORLEVEL% GTR 10 ( exit /b 1 ) else ( exit /b 0 )"
+          commands:
+            1-change-password:
+              command: !Sub |
+                net user Administrator "{{resolve:secretsmanager:windowspassword}}"
+            2-signal-success:
+              command: !Join
+                - ''
+                - - cfn-signal.exe -e 0 "
+                  - !Base64
+                    Ref: WaitHandle
+                  - '"'
+          services:
+            windows:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - c:\cfn\cfn-hup.conf
+                  - c:\cfn\hooks.d\cfn-auto-reloader.conf
+    Properties:
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SubnetId: !Ref SubnetId
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base}}'
+      InstanceType: !Ref 'InstanceType'
+      SecurityGroupIds:
+        - !GetAtt 'SecurityGroup.GroupId'
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "<script>\n"
+            - 'cfn-init.exe -v -s '
+            - !Ref 'AWS::StackId'
+            - ' -r WindowsInstance '
+            - ' --region '
+            - !Ref 'AWS::Region'
+            - "\n"
+            - </script>
+  WaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: WindowsInstance
+    Properties:
+      Handle: !Ref 'WaitHandle'
+      Timeout: '1500'
+  WaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VpcId'
+      GroupDescription: OutboundOnly
+      SecurityGroupEgress:
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
