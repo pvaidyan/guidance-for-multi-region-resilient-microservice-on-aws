@@ -221,7 +221,7 @@ destroy-ecr-standby: destroy-apps-standby
 	@aws ecr delete-repository --force --repository-name assets${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name orders${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
-destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary
+destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary destroy-client-standby destroy-client-primary
 	@echo "Deleting global routing stack..."
 	@aws cloudformation delete-stack --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name gr${ENV} --region ${PRIMARY_REGION}
