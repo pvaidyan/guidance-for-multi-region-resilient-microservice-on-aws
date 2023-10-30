@@ -161,6 +161,17 @@ carts-db: primary_infrastructure
 	--region ${PRIMARY_REGION} --stack-name carts-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=carts
 
+client-primary: primary_infrastructure
+	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text))
+	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(PRIMARY_REGION)$(ENV) --region $(PRIMARY_REGION) --query "SecretString" --output text))
+	@echo "Creating testing client in ${PRIMARY_REGION}"
+	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${PRIMARY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
+client-standby: standby_infrastructure
+	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text))
+	$(eval vpc:=$(shell aws sssecretsmanagerm get-secret-value --secret-id VpcId-$(STANDBY_REGION)$(ENV) --region $(STANDBY_REGION) --query "SecretString" --output text))
+	@echo "Creating testing client in ${STANDBY_REGION}"
+	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${STANDBY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
+
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 
@@ -269,3 +280,12 @@ destroy-databases-standby: destroy-apps-standby
 	
 	@aws cloudformation wait stack-delete-complete --stack-name catalog-db-stack${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name orders-db-stack${ENV} --region ${STANDBY_REGION}
+
+destroy-client-primary:
+	@echo "Deleting client in ${PRIMARY_REGION}"
+	@aws cloudformation delete-stack --stack-name client${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name client${ENV} --region ${PRIMARY_REGION}
+destroy-client-standby:
+	@echo "Deleting client in ${STANDBY_REGION}"
+	@aws cloudformation delete-stack --stack-name client${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name client${ENV} --region ${STANDBY_REGION}

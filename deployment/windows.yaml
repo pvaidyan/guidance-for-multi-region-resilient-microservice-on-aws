@@ -5,16 +5,18 @@ Description: >-
   This template creates a single Windows server to be used as a browser to test the application
 
 Parameters:
+  Env:
+    Type: String
+    Default: '-dev'
+    Description: String to enable multiple deployments per AWS region
   SubnetId:
     Type: String 
-    Default: subnet-0fe9cb2b77316ff18
   VpcId:
     Type: String
-    Default: vpc-03d18f2f60402b8ee
   InstanceType:
     Description: Amazon EC2 instance type
     Type: String
-    Default: t3.large
+    Default: t3.small
     ConstraintDescription: must be a valid EC2 instance type.
 
 Resources:
@@ -27,68 +29,30 @@ Resources:
         ManagedPolicyArns: 
           - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
         Description: "SSM role for managed EC2 instances"
+        Policies:
+          - PolicyName: secretsManager
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Resource: !Ref WindowsPassword
+                  Action:
+                    - "secretsmanager:GetSecretValue"
   IamInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
         Path: "/"
-        InstanceProfileName: !Ref IamInstanceRole
         Roles: 
           - !Ref IamInstanceRole
   WindowsPassword:
     Type: "AWS::SecretsManager::Secret"
     Properties:
-      Name: !Sub 'windowspassword'
+      Name: !Sub 'windowspassword${Env}'
       GenerateSecretString: 
+        PasswordLength: 15
         ExcludePunctuation: true
   WindowsInstance:
     Type: AWS::EC2::Instance
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          files:
-            c:\cfn\cfn-hup.conf:
-              content: !Join
-                - ''
-                - - "[main]\n"
-                  - stack=
-                  - !Ref 'AWS::StackId'
-                  - "\n"
-                  - region=
-                  - !Ref 'AWS::Region'
-                  - "\n"
-            c:\cfn\hooks.d\cfn-auto-reloader.conf:
-              content: !Join
-                - ''
-                - - "[cfn-auto-reloader-hook]\n"
-                  - "triggers=post.update\n"
-                  - "path=Resources.WindowsInstance.Metadata.AWS::CloudFormation::Init\n"
-                  - 'action=cfn-init.exe -v -s '
-                  - !Ref 'AWS::StackId'
-                  - ' -r WindowsInstance'
-                  - ' --region '
-                  - !Ref 'AWS::Region'
-                  - "\n"
-            C:\cfn\RunCommand.bat:
-              content: "%~1\nIF %ERRORLEVEL% GTR 10 ( exit /b 1 ) else ( exit /b 0 )"
-          commands:
-            1-change-password:
-              command: !Sub |
-                net user Administrator "{{resolve:secretsmanager:windowspassword}}"
-            2-signal-success:
-              command: !Join
-                - ''
-                - - cfn-signal.exe -e 0 "
-                  - !Base64
-                    Ref: WaitHandle
-                  - '"'
-          services:
-            windows:
-              cfn-hup:
-                enabled: 'true'
-                ensureRunning: 'true'
-                files:
-                  - c:\cfn\cfn-hup.conf
-                  - c:\cfn\hooks.d\cfn-auto-reloader.conf
     Properties:
       IamInstanceProfile: !Ref IamInstanceProfile
       SubnetId: !Ref SubnetId
@@ -96,25 +60,14 @@ Resources:
       InstanceType: !Ref 'InstanceType'
       SecurityGroupIds:
         - !GetAtt 'SecurityGroup.GroupId'
-      UserData: !Base64
-        Fn::Join:
-          - ''
-          - - "<script>\n"
-            - 'cfn-init.exe -v -s '
-            - !Ref 'AWS::StackId'
-            - ' -r WindowsInstance '
-            - ' --region '
-            - !Ref 'AWS::Region'
-            - "\n"
-            - </script>
-  WaitCondition:
-    Type: AWS::CloudFormation::WaitCondition
-    DependsOn: WindowsInstance
-    Properties:
-      Handle: !Ref 'WaitHandle'
-      Timeout: '1500'
-  WaitHandle:
-    Type: AWS::CloudFormation::WaitConditionHandle
+      UserData: 
+        Fn::Base64: !Sub |
+          <powershell>
+          $Password = Get-SECSecretValue -SecretId "${WindowsPassword}" -Select SecretString
+          $SecPassword = convertto-securestring $Password -asplaintext -force
+          $UserAccount = Get-LocalUser -Name "Administrator"
+          $UserAccount | Set-LocalUser -Password $SecPassword
+          </powershell>
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
