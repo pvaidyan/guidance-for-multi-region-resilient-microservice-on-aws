@@ -1,0 +1,80 @@
+# aws cloudformation deploy --template-file AD.yaml --stack-name AD --region us-east-2 --parameter-overrides KeyName=sbx0-keypair RestoreModePassword='Password!1' DomainDNSName=mlanza.org DomainNetBIOSName=mlanza SourceCidrForRDP=10.0.0.0/16 VpcId=vpc-09f279bd014bc995f SubnetId=subnet-0599abdc16332851e IamProfile='AmazonSSMRoleForInstancesQuickSetup'
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template creates a single Windows server to be used as a browser to test the application
+
+Parameters:
+  Env:
+    Type: String
+    Default: '-dev'
+    Description: String to enable multiple deployments per AWS region
+  SubnetId:
+    Type: String 
+  VpcId:
+    Type: String
+  InstanceType:
+    Description: Amazon EC2 instance type
+    Type: String
+    Default: t3.small
+    ConstraintDescription: must be a valid EC2 instance type.
+
+Resources:
+  IamInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+        Path: "/"
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        MaxSessionDuration: 3600
+        ManagedPolicyArns: 
+          - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+        Description: "SSM role for managed EC2 instances"
+        Policies:
+          - PolicyName: secretsManager
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Resource: !Ref WindowsPassword
+                  Action:
+                    - "secretsmanager:GetSecretValue"
+  IamInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+        Path: "/"
+        Roles: 
+          - !Ref IamInstanceRole
+  WindowsPassword:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: !Sub 'mr-app-windowspassword${Env}'
+      GenerateSecretString: 
+        PasswordLength: 15
+        ExcludePunctuation: true
+  WindowsInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SubnetId: !Ref SubnetId
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base}}'
+      InstanceType: !Ref 'InstanceType'
+      SecurityGroupIds:
+        - !GetAtt 'SecurityGroup.GroupId'
+      UserData: 
+        Fn::Base64: !Sub |
+          <powershell>
+          $Password = Get-SECSecretValue -SecretId "${WindowsPassword}" -Select SecretString
+          $SecPassword = convertto-securestring $Password -asplaintext -force
+          $UserAccount = Get-LocalUser -Name "Administrator"
+          $UserAccount | Set-LocalUser -Password $SecPassword
+          </powershell>
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VpcId'
+      GroupDescription: OutboundOnly
+      SecurityGroupEgress:
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"

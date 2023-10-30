@@ -1,5 +1,5 @@
 # Change these for your environment
-ENV=-dev0
+ENV=
 PRIMARY_REGION=us-east-1
 STANDBY_REGION=us-west-2
 ####
@@ -17,10 +17,31 @@ MAKE=/usr/bin/make
 DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
-deploy: deploy-ecs
-deploy-ecs: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
-	canaries_primary canaries_standby failover_primary failover_standby
+
+deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
+	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
+
+deploy: deploy-all
+	@echo "*** Deployment Outputs ****"
+	@echo ""
+	@echo "Canaries in ${PRIMARY_REGION}:"
+	@echo "https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=${PRIMARY_REGION}#synthetics:canary/list"
+	@echo ""
+	@echo "Canaries in ${STANDBY_REGION}:"
+	@echo "https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=${STANDBY_REGION}#synthetics:canary/list"
+	@echo ""
+	@echo "Client for in-VPC Browser in ${PRIMARY_REGION}:"
+	@echo "https://${PRIMARY_REGION}.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=${PRIMARY_REGION}"
+	@echo ""
+	@echo "Client for in-VPC Browser in ${STANDBY_REGION}:"
+	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=${STANDBY_REGION}"
+	@echo ""
+	@echo "Administrator user password in ${PRIMARY_REGION}:"
+	@echo "https://${PRIMARY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword${ENV}&region=${PRIMARY_REGION}"
+	@echo ""
+	@echo "Administrator user password in ${STANDBY_REGION}:"
+	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword${ENV}&region=${STANDBY_REGION}"
 
 create-peer:
 	$(eval result:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForECS'])"))
@@ -33,7 +54,6 @@ create-peer:
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 ecr-login:
-
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
 	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 
@@ -161,6 +181,18 @@ carts-db: primary_infrastructure
 	--region ${PRIMARY_REGION} --stack-name carts-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=carts
 
+client-primary: primary_infrastructure
+	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text))
+	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(PRIMARY_REGION)$(ENV) --region $(PRIMARY_REGION) --query "SecretString" --output text))
+	@echo "Creating testing client in ${PRIMARY_REGION}"
+	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${PRIMARY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
+
+client-standby: standby_infrastructure
+	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text))
+	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(STANDBY_REGION)$(ENV) --region $(STANDBY_REGION) --query "SecretString" --output text))
+	@echo "Creating testing client in ${STANDBY_REGION}"
+	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${STANDBY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
+
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 
@@ -269,3 +301,13 @@ destroy-databases-standby: destroy-apps-standby
 	
 	@aws cloudformation wait stack-delete-complete --stack-name catalog-db-stack${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name orders-db-stack${ENV} --region ${STANDBY_REGION}
+
+destroy-client-primary:
+	@echo "Deleting client in ${PRIMARY_REGION}"
+	@aws cloudformation delete-stack --stack-name client${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name client${ENV} --region ${PRIMARY_REGION}
+	
+destroy-client-standby:
+	@echo "Deleting client in ${STANDBY_REGION}"
+	@aws cloudformation delete-stack --stack-name client${ENV} --region ${STANDBY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name client${ENV} --region ${STANDBY_REGION}
