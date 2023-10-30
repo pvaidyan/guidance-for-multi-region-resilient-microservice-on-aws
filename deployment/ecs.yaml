@@ -907,6 +907,12 @@ Resources:
               awslogs-stream-prefix: ecs  
   UiService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - CartsService
+      - OrdersService
+      - AssetsService
+      - CatalogService
+      - CheckoutService
     Properties:
       ServiceName: !Sub ui${Env}
       LoadBalancers:
