@@ -89,6 +89,7 @@ Resources:
       SubnetId: !Ref publicSubnet1
       AllocationId: !GetAtt natEip1.AllocationId
   pubRouteTable:
+    DependsOn: IgwAttach
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'

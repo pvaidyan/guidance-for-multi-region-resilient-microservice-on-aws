@@ -14,6 +14,9 @@ Parameters:
     Type: String
     Description: Enter the Standby Region
     Default: "us-west-2"
+  Tag:
+    Type: String
+    Description: Docker image tag
 
 Conditions:
   isPrimary: !Equals
@@ -288,13 +291,13 @@ Resources:
   Alb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Scheme: internet-facing
+      Scheme: internal
       SecurityGroups: 
         - !Ref sgAlb
       Subnets:
-        - !Sub '{{resolve:ssm:PubSubnet1${Env}}}'
-        - !Sub '{{resolve:ssm:PubSubnet2${Env}}}'
-        - !Sub '{{resolve:ssm:PubSubnet3${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+        - !Sub '{{resolve:ssm:Subnet3${Env}}}'
       Type: application
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -379,7 +382,7 @@ Resources:
             - ContainerPort: 8080
               Name: carts
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -488,7 +491,7 @@ Resources:
             - ContainerPort: 8080
               AppProtocol: http
               Name: orders
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -594,7 +597,7 @@ Resources:
             - ContainerPort: 8080
               Name: assets
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -697,7 +700,7 @@ Resources:
             - ContainerPort: 8080
               Name: catalog
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/catalog${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/catalog${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -795,7 +798,7 @@ Resources:
             - ContainerPort: 8080
               Name: checkout
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
@@ -879,7 +882,7 @@ Resources:
             - ContainerPort: 8080
               Name: ui
               AppProtocol: http
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:latest"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:${Tag}"
           Cpu: 0
           MemoryReservation: 50
           Essential: true
