@@ -164,7 +164,7 @@ Resources:
   DisablePrimaryApplicationRunbook:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'DisableApplication_PrimaryRegion${Env}'
+      Name: !Sub 'mr-app-DisableApplication_PrimaryRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
@@ -194,7 +194,7 @@ Resources:
   DisableStandbyApplicationRunbook:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'DisableApplication_StandbyRegion${Env}'
+      Name: !Sub 'mr-app-DisableApplication_StandbyRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
@@ -284,7 +284,7 @@ Resources:
   FailoverOrdersDbPrimary:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'FailoverOrders_PrimaryRegion${Env}'
+      Name: !Sub 'mr-app-FailoverOrders_PrimaryRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
@@ -315,7 +315,7 @@ Resources:
   FailoverOrdersDbStandby:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'FailoverOrders_StandbyRegion${Env}'
+      Name: !Sub 'mr-app-FailoverOrders_StandbyRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
@@ -345,7 +345,7 @@ Resources:
   FailoverCatalogDbPrimary:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'FailoverCatalog_PrimaryRegion${Env}'
+      Name: !Sub 'mr-app-FailoverCatalog_PrimaryRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
@@ -375,7 +375,7 @@ Resources:
   FailoverCatalogDbStandby:
     Type: AWS::SSM::Document
     Properties:
-      Name: !Sub 'FailoverCatalog_StandbyRegion${Env}'
+      Name: !Sub 'mr-app-FailoverCatalog_StandbyRegion${Env}'
       DocumentType: Automation
       DocumentFormat: YAML
       Content:
