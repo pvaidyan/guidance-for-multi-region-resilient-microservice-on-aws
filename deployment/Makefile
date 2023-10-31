@@ -250,7 +250,7 @@ destroy-ecr-standby: destroy-apps-standby
 	@aws ecr delete-repository --force --repository-name assets${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name orders${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
-destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary destroy-client-standby destroy-client-primary
+destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary
 	@echo "Deleting global routing stack..."
 	@aws cloudformation delete-stack --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name gr${ENV} --region ${PRIMARY_REGION}
@@ -285,7 +285,7 @@ destroy-apps-standby: destroy-global_routing
 	@aws cloudformation delete-stack --stack-name apps${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name apps${ENV} --region ${STANDBY_REGION}
 
-destroy-infra: destroy-ecr-standby destroy-ecr-primary destroy-databases-standby destroy-databases-primary
+destroy-infra: destroy-ecr-standby destroy-ecr-primary destroy-databases-standby destroy-databases-primary destroy-client-primary destroy-client-standby
 	@echo "Deleting networking resources in ${STANDBY_REGION}..."
 	@aws cloudformation delete-stack --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name baseInfra${ENV} --region ${STANDBY_REGION}
