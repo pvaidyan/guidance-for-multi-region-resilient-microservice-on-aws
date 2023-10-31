@@ -35,7 +35,7 @@ export class CheckoutService {
 
   async get(customerId: string) : Promise<Checkout> {
     const json = await this.checkoutRepository.get(customerId);
-
+    console.log(json);
     if(!json) {
       return null;
     }
@@ -68,7 +68,8 @@ export class CheckoutService {
         tax,
         total: request.subtotal + effectiveTax,
       };
-
+      console.log("=====About to Save Checkout in Redis");
+      console.log(checkout);
       await this.checkoutRepository.set(customerId, serialize(checkout));
 
       return checkout;

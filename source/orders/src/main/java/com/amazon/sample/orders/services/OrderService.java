@@ -28,6 +28,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import jakarta.transaction.Transactional;
+
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -47,24 +50,34 @@ public class OrderService {
 
     @Transactional
     public OrderEntity create(OrderEntity order) {
+        log.info("Order to Create: {}", order);
         for(OrderItemEntity item : order.getItems()) {
             item.setOrder(order);
 
             OrderItemEntity.Key key = new OrderItemEntity.Key();
-            //key.setProductId(item.getProductId());
+            key.setProductId(item.getProductId());
 
             item.setId(key);
         }
-
+        order.setCreatedOn(Instant.now().toString());
         OrderEntity entity = repository.save(order);
-
+        log.info("Created Order: {}", entity);
         eventHandler.postCreatedEvent(entity);
 
         return entity;
     }
 
     public List<OrderEntity> list() {
-      return StreamSupport.stream(this.readRepository.findAll().spliterator(), false)
-        .collect(Collectors.toList());
+        List<OrderEntity> orderEntities = StreamSupport.stream(this.readRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
+        orderEntities.forEach(o -> {
+            log.info("OrderId: {}", o.getId());
+            o.getItems().forEach(i -> {
+                log.info(i.getProductId());
+                log.info(String.valueOf(i.getQuantity()));
+                log.info(String.valueOf(i.getTotalCost()));
+            });
+        });
+        return orderEntities;
     }
 }

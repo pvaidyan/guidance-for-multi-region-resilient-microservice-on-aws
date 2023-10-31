@@ -50,6 +50,13 @@ Parameters:
     Default: "us-west-2"
   DBSecretArn:
     Type: String
+Conditions:
+  isPrimary: !Equals
+    - !Ref AWS::Region
+    - us-east-1
+  isOrders: !Equals
+    - !Ref NamingPrefix
+    - orders
 Resources:
   AuroraMySqlComputeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -104,7 +111,7 @@ Resources:
       Type: String
       Name: !Sub '${NamingPrefix}-${GlobalClusterIdentifier}-Hostname${Env}'
       Description: "Secret that has the RDS-generated hostname for the database"
-      Value: !Sub "${DBCluster.Endpoint.Address}:${DBCluster.Endpoint.Port}"
+      Value: !If [ isOrders, !Sub "jdbc:mariadb://${DBCluster.Endpoint.Address}:${DBCluster.Endpoint.Port}/orders" , !Sub "${DBCluster.Endpoint.Address}:${DBCluster.Endpoint.Port}"]
   DBCredentialSecretArn:
     Type: 'AWS::SSM::Parameter'
     Properties:

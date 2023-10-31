@@ -31,9 +31,15 @@ export class HttpOrdersService implements IOrdersService {
   async create(checkout : Checkout) : Promise<ExistingOrder> {
     return this.ordersApi.createOrder({
       email: checkout.request.customerEmail,
-      firstName: "John",
-      lastName: "Doe",
-      items: checkout.request.items
+      firstName: checkout.request.shippingAddress.firstName,
+      lastName: checkout.request.shippingAddress.lastName,
+      items: checkout.request.items.map(item => {
+        return {
+          price: item.totalCost,
+          productId: item.id,
+          quantity: item.quantity,
+        };
+      }),
     }).then((value) => {
       return value.body;
     });

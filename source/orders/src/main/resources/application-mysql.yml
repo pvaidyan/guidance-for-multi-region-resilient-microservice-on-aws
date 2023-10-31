@@ -1,7 +1,7 @@
 spring:
   jpa:
     generate-ddl: true
-    show-sql: false
+    show-sql: true
     hibernate:
       ddl-auto: update
 
@@ -17,3 +17,7 @@ spring:
       username:
       password:
       driverClassName: org.mariadb.jdbc.Driver
+
+logging:
+  level:
+    root: debug
