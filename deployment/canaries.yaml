@@ -533,7 +533,7 @@ Resources:
   remoteSyntheticsCanaryOrders:
     Type: 'AWS::Synthetics::Canary'
     Properties:
-      Name: !Sub rmt-rgnl-catalog${Env}
+      Name: !Sub rmt-rgnl-orders${Env}
       ExecutionRoleArn: !Sub '{{resolve:ssm:canaryRoleArn${Env}}}'
       VPCConfig:
         SecurityGroupIds:

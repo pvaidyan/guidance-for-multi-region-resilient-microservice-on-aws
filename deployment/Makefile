@@ -44,139 +44,168 @@ deploy: deploy-all
 	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword${ENV}&region=${STANDBY_REGION}"
 
 create-peer:
+	@echo "Verifying if the AWSServiceRoleForECS exists; if not; this will be created for you..."
 	$(eval result:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForECS'])"))
 	@if [ "$(result)" -eq "0" ]; then \
 		aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --no-cli-pager; \
 	fi
+	@echo "Deploying VPC Stack in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	@echo "Deploying VPC Stack in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
 	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 ecr-login:
+	@echo "Verifying ECR Login in ${PRIMARY_REGION}"
 	(aws ecr get-login-password --region $(PRIMARY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(PRIMARY_REGION).amazonaws.com)
+	@echo "Verifying ECR Login in ${STANDBY_REGION}"
 	(aws ecr get-login-password --region $(STANDBY_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(STANDBY_REGION).amazonaws.com)
 
 build-catalog-primary: primary_infrastructure ecr-login
+	@echo "Build Catalog service Image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/catalog/; docker build -t catalog${ENV}:${TAG} .
 	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
 build-catalog-standby: standby_infrastructure ecr-login
+	@echo "Push Catalog service Image to ECR in ${STANDBY_REGION}"
 	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
 build-checkout-primary: primary_infrastructure ecr-login
+	@echo "Build Checkout service image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/checkout/; docker build -t checkout${ENV}:${TAG} .
 	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
 build-checkout-standby: standby_infrastructure ecr-login
+	@echo "Push Checkout service Image to ECR in ${STANDBY_REGION}"
 	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
 build-ui-primary: primary_infrastructure ecr-login
+	@echo "Build UI service image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/ui/; docker build -t ui${ENV}:${TAG} .
 	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
 build-ui-standby: standby_infrastructure ecr-login
+	@echo "Push UI service Image to ECR in ${STANDBY_REGION}"
 	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
 build-carts-primary: primary_infrastructure ecr-login
+	@echo "Build Carts service image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/cart/; docker build -t carts${ENV}:${TAG} .
 	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
 build-carts-standby: standby_infrastructure ecr-login
+	@echo "Push Carts service Image to ECR in ${STANDBY_REGION}"
 	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
 build-assets-primary: primary_infrastructure ecr-login
+	@echo "Build Assets service image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/assets/; docker build -t assets${ENV}:${TAG} .
 	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
 build-assets-standby: standby_infrastructure ecr-login
+	@echo "Push Assets service Image to ECR in ${STANDBY_REGION}"
 	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
 build-orders-primary: primary_infrastructure ecr-login
+	@echo "Build Orders service image and Push to ECR in ${PRIMARY_REGION}"
 	@cd ../source/orders/; docker build -t orders${ENV}:${TAG} .
 	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
 build-orders-standby: standby_infrastructure ecr-login
+	@echo "Push Orders service Image to ECR in ${STANDBY_REGION}"
 	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
 primary_infrastructure: create-peer
+	@echo "Deploy Infrastructure resources in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary build-assets-primary build-orders-primary primary_region_catalog-db primary_region_orders-db carts-db
+	@echo "Deploy ECS Services in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
 
 standby_infrastructure: create-peer
+	@echo "Deploy Infrastructure resources in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${STANDBY_REGION} \
 	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build-carts-standby build-assets-standby build-orders-standby standby_region_catalog-db standby_region_orders-db
+	@echo "Deploy ECS Services in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
 
 global_routing: standby_ecs primary_ecs
+	@echo "Deploy the Global Routing layer"
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./globalRouting.yaml \
 	--stack-name gr${ENV} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides DomainName=demo${ENV}.io Env=${ENV} 
 
 canaries_primary: global_routing
+	@echo "Deploy the Synthetic Canaries in ${PRIMARY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
-	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM --s3-bucket $(result)
 canaries_standby: global_routing
+	@echo "Deploy the Synthetic Canaries in ${STANDBY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./canaries.yaml \
-	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM --s3-bucket $(result)
 
 failover_primary: global_routing
+	@echo "Deploy the Regional Failover runbook resources in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./failover.yaml \
 	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
 failover_standby: global_routing
+	@echo "Deploy the Regional Failover runbook resources in ${STANDBY_REGION}"
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./failover.yaml \
 	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${PRIMARY_REGION} --capabilities CAPABILITY_IAM
 
 primary_region_catalog-db: primary_infrastructure
-	@echo "Creating Catalog Database in ${PRIMARY_REGION}..."
+	@echo "Creating Catalog service Aurora MySql database in ${PRIMARY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog DatabaseName=catalog
 
 standby_region_catalog-db: standby_infrastructure primary_region_catalog-db
 	$(eval result:=$(shell aws ssm get-parameter --name catalog-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
-	@echo "Creating Catalog Database in ${STANDBY_REGION}..."
+	@echo "Creating Catalog service Aurora MySql database in ${STANDBY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name catalog-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=catalog DBSecretArn=${result} DatabaseName=catalog
 
 primary_region_orders-db: primary_infrastructure
-	@echo "Creating Orders Database in ${PRIMARY_REGION}..."
+	@echo "Creating Orders service Aurora MySql database in ${PRIMARY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-primary-cluster.yml \
 	--region ${PRIMARY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders DatabaseName=orders
 
 standby_region_orders-db: standby_infrastructure primary_region_orders-db
 	$(eval result:=$(shell aws ssm get-parameter --name orders-global-db-cluster-CredentialSecretArn$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text|sed s/$(PRIMARY_REGION)/$(STANDBY_REGION)/g ))
-	@echo "Creating Orders Database in ${STANDBY_REGION}..."
+	@echo "Creating Orders service Aurora MySql database in ${STANDBY_REGION}..."
 	@aws cloudformation deploy --template ./database/aurora/aurora-global-standby-cluster.yml \
 	--region ${STANDBY_REGION} --stack-name orders-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=orders DBSecretArn=${result} DatabaseName=orders
 
 carts-db: primary_infrastructure
+	@echo "Verifying if the AWSServiceRoleForDynamoDBReplication exists; if not; this will be created for you..."
 	$(eval resultDDB:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForDynamoDBReplication'])"))
 	@if [ "$(resultDDB)" -eq "0" ]; then \
     		aws iam create-service-linked-role --aws-service-name replication.dynamodb.amazonaws.com --no-cli-pager; \
     fi
-	@echo "Creating Carts Global Table in ${PRIMARY_REGION} and ${STANDBY_REGION}..."
+	@echo "Creating Carts service DynamoDB Global Table in ${PRIMARY_REGION} and ${STANDBY_REGION}..."
 	@aws cloudformation deploy --template ./database/dynamodb/global-table.yml \
 	--region ${PRIMARY_REGION} --stack-name carts-db-stack${ENV} --capabilities CAPABILITY_IAM \
 	--parameter-overrides Env=${ENV} NamingPrefix=carts
@@ -184,13 +213,13 @@ carts-db: primary_infrastructure
 client-primary: primary_infrastructure
 	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text))
 	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(PRIMARY_REGION)$(ENV) --region $(PRIMARY_REGION) --query "SecretString" --output text))
-	@echo "Creating testing client in ${PRIMARY_REGION}"
+	@echo "Creating Windows client for testing purposes in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${PRIMARY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
 
 client-standby: standby_infrastructure
 	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text))
 	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(STANDBY_REGION)$(ENV) --region $(STANDBY_REGION) --query "SecretString" --output text))
-	@echo "Creating testing client in ${STANDBY_REGION}"
+	@echo "Creating Windows client for testing purposes in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} --region ${STANDBY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
 
 clean:
