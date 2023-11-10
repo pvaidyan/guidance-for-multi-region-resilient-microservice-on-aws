@@ -118,6 +118,7 @@ Resources:
           IpProtocol: tcp
           FromPort: 8080
           ToPort:  8080
+          Description: 'Allow ingress traffic'
   sgTaskIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties: 
@@ -126,6 +127,7 @@ Resources:
       FromPort: 8080
       ToPort:  8080
       GroupId: !GetAtt sgTask.GroupId
+      Description: 'Allow Ingress Traffic'
   sgAlb:
     Type: AWS::EC2::SecurityGroup
     Properties: 
@@ -195,6 +197,7 @@ Resources:
   CatalogAuroraMySqlComputeSecurityGroupInboundRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
+      Description: "Allow traffic on MySql Port"
       IpProtocol: tcp
       FromPort: 3306
       ToPort: 3306
@@ -203,6 +206,7 @@ Resources:
   OrdersAuroraMySqlComputeSecurityGroupInboundRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
+      Description: "Allow traffic on MySql Port"
       IpProtocol: tcp
       FromPort: 3306
       ToPort: 3306
@@ -245,6 +249,7 @@ Resources:
     Type: "AWS::KMS::Key"
     Properties:
       Enabled: true
+      EnableKeyRotation: true
       Description: "retail-store-ar CMK"
       KeyUsage: "ENCRYPT_DECRYPT"
       KeyPolicy: !Sub |
@@ -283,15 +288,50 @@ Resources:
       GenerateSecretString: 
         ExcludePunctuation: true
 
+  LogGroupKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Enabled: true
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-loggroup
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Join
+                - ''
+                - - !Sub 'arn:${AWS::Partition}:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Enable Cloudwatch access
+            Effect: Allow
+            Principal:
+              Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties: 
       RetentionInDays: 3
+      KmsKeyId: !GetAtt LogGroupKey.Arn
 
   Alb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Scheme: internal
+      LoadBalancerAttributes:
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: true
       SecurityGroups: 
         - !Ref sgAlb
       Subnets:
@@ -325,6 +365,9 @@ Resources:
     Properties:
       ServiceConnectDefaults:
         Namespace: !Sub retail-store-ar${Env}
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
   
   #Carts Service
   CartsTaskExecutionRole:
@@ -817,6 +860,8 @@ Resources:
               awslogs-stream-prefix: ecs  
   CheckoutService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - OrdersService
     Properties:
       ServiceName: !Sub checkout${Env}
       CapacityProviderStrategy:

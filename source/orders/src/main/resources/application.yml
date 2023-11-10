@@ -29,9 +29,11 @@ spring:
       username:
       password:
       driverClassName: org.mariadb.jdbc.Driver
+      connection-init-sql: SET aurora_replica_read_consistency = 'session'
 
     reader:
       jdbc-url: ${spring.datasource.reader.url}
       username:
       password:
       driverClassName: org.mariadb.jdbc.Driver
+      connection-init-sql: SET aurora_replica_read_consistency = 'session'
