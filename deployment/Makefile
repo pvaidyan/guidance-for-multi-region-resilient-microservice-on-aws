@@ -134,7 +134,7 @@ primary_infrastructure: create-peer
 primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary build-assets-primary build-orders-primary primary_region_catalog-db primary_region_orders-db carts-db
 	@echo "Deploy ECS Services in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG} KmsKey=retail-store-ar${ENV}
 
 standby_infrastructure: create-peer
 	@echo "Deploy Infrastructure resources in ${STANDBY_REGION}"
@@ -144,7 +144,7 @@ standby_infrastructure: create-peer
 standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build-carts-standby build-assets-standby build-orders-standby standby_region_catalog-db standby_region_orders-db
 	@echo "Deploy ECS Services in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
-	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG}
+	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG} KmsKey=retail-store-ar${ENV}
 
 global_routing: standby_ecs primary_ecs
 	@echo "Deploy the Global Routing layer"
