@@ -18,6 +18,11 @@ Parameters:
     Type: String
     Description: Enter the Standby Region
     Default: "us-west-2"
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id
+
 
 Mappings:
   RegionMap:
@@ -231,39 +236,12 @@ Resources:
     Properties:
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
   
-  KmsKey:
-    Type: "AWS::KMS::Key"
-    Properties:
-      Enabled: true
-      EnableKeyRotation: true
-      Description: "retail-store-ar CMK"
-      KeyUsage: "ENCRYPT_DECRYPT"
-      KeyPolicy: !Sub |
-          {
-            "Version" : "2012-10-17",
-            "Id" : "key-default-1",
-            "Statement" : [ {
-              "Sid" : "Enable IAM User Permissions",
-              "Effect" : "Allow",
-              "Principal" : {
-                "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
-              },
-              "Action" : "kms:*",
-              "Resource" : "*"
-            } ]
-          }
-      KeySpec: "SYMMETRIC_DEFAULT"
-      MultiRegion: false
-  KmsKeyParam:
-    Type: AWS::SSM::Parameter
-    Properties: 
-      Type: String
-      Name: !Sub retail-store-ar${Env}
-      Value: !Ref KmsKey
 #Ecr Repos
   CheckoutRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'checkout${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:
@@ -272,6 +250,8 @@ Resources:
   CatalogRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+          ScanOnPush: true
       RepositoryName: !Sub 'catalog${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:
@@ -280,6 +260,8 @@ Resources:
   CartsRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'carts${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:
@@ -288,6 +270,8 @@ Resources:
   AssetsRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'assets${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:
@@ -296,6 +280,8 @@ Resources:
   OrdersRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'orders${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:
@@ -304,6 +290,8 @@ Resources:
   UIRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'ui${Env}'
       ImageTagMutability: IMMUTABLE
       EncryptionConfiguration:

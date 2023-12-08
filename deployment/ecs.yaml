@@ -346,6 +346,13 @@ Resources:
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
+      TargetGroupAttributes:
+      - 
+        Key: load_balancing.algorithm.type
+        Value: weighted_random
+      -
+        Key: load_balancing.algorithm.anomaly_mitigation
+        Value: 'on'
       HealthCheckEnabled: true
       HealthCheckPath: '/actuator'
       Port: 8080
@@ -1009,7 +1016,7 @@ Resources:
     Properties:
       Name: !Sub Alb-${AWS::Region}${Env}
       Description: "Alb Info"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
