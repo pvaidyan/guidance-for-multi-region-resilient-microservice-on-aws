@@ -50,6 +50,7 @@ Resources:
     Type: "AWS::SecretsManager::Secret"
     Properties:
       Name: !Sub 'mr-app-windowspassword${Env}'
+      KmsKeyId: !Ref KmsKey
       GenerateSecretString: 
         PasswordLength: 15
         ExcludePunctuation: true
