@@ -18,6 +18,10 @@ Parameters:
     Type: String
     Description: Enter the Secondary Region
     Default: "us-west-2"
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id 
 
 Resources:
   DDBGlobalTable:
@@ -56,7 +60,7 @@ Resources:
     Properties:
       Name: !Sub '${NamingPrefix}Table${Env}Secret'
       Description: "DDB Global Table"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref DDBGlobalTable
       ReplicaRegions:
         - Region: !Ref SecondaryRegion

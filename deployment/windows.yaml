@@ -1,5 +1,3 @@
-# aws cloudformation deploy --template-file AD.yaml --stack-name AD --region us-east-2 --parameter-overrides KeyName=sbx0-keypair RestoreModePassword='Password!1' DomainDNSName=mlanza.org DomainNetBIOSName=mlanza SourceCidrForRDP=10.0.0.0/16 VpcId=vpc-09f279bd014bc995f SubnetId=subnet-0599abdc16332851e IamProfile='AmazonSSMRoleForInstancesQuickSetup'
-
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   This template creates a single Windows server to be used as a browser to test the application
@@ -18,6 +16,10 @@ Parameters:
     Type: String
     Default: t3.small
     ConstraintDescription: must be a valid EC2 instance type.
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id
 
 Resources:
   IamInstanceRole:
@@ -48,6 +50,7 @@ Resources:
     Type: "AWS::SecretsManager::Secret"
     Properties:
       Name: !Sub 'mr-app-windowspassword${Env}'
+      KmsKeyId: !Ref KmsKey
       GenerateSecretString: 
         PasswordLength: 15
         ExcludePunctuation: true

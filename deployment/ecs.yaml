@@ -17,6 +17,10 @@ Parameters:
   Tag:
     Type: String
     Description: Docker image tag
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id 
 
 Conditions:
   isPrimary: !Equals
@@ -245,29 +249,29 @@ Resources:
           Description: "Allow all egress"
           IpProtocol: "-1"
 
-  KmsKey:
-    Type: "AWS::KMS::Key"
-    Properties:
-      Enabled: true
-      EnableKeyRotation: true
-      Description: "retail-store-ar CMK"
-      KeyUsage: "ENCRYPT_DECRYPT"
-      KeyPolicy: !Sub |
-          {
-            "Version" : "2012-10-17",
-            "Id" : "key-default-1",
-            "Statement" : [ {
-              "Sid" : "Enable IAM User Permissions",
-              "Effect" : "Allow",
-              "Principal" : {
-                "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
-              },
-              "Action" : "kms:*",
-              "Resource" : "*"
-            } ]
-          }
-      KeySpec: "SYMMETRIC_DEFAULT"
-      MultiRegion: false
+  # KmsKey:
+  #   Type: "AWS::KMS::Key"
+  #   Properties:
+  #     Enabled: true
+  #     EnableKeyRotation: true
+  #     Description: "retail-store-ar CMK"
+  #     KeyUsage: "ENCRYPT_DECRYPT"
+  #     KeyPolicy: !Sub |
+  #         {
+  #           "Version" : "2012-10-17",
+  #           "Id" : "key-default-1",
+  #           "Statement" : [ {
+  #             "Sid" : "Enable IAM User Permissions",
+  #             "Effect" : "Allow",
+  #             "Principal" : {
+  #               "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
+  #             },
+  #             "Action" : "kms:*",
+  #             "Resource" : "*"
+  #           } ]
+  #         }
+  #     KeySpec: "SYMMETRIC_DEFAULT"
+  #     MultiRegion: false
   
   #Secrets
 
@@ -342,6 +346,13 @@ Resources:
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
+      TargetGroupAttributes:
+      - 
+        Key: load_balancing.algorithm.type
+        Value: weighted_random
+      -
+        Key: load_balancing.algorithm.anomaly_mitigation
+        Value: 'on'
       HealthCheckEnabled: true
       HealthCheckPath: '/actuator'
       Port: 8080
@@ -1005,7 +1016,7 @@ Resources:
     Properties:
       Name: !Sub Alb-${AWS::Region}${Env}
       Description: "Alb Info"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
