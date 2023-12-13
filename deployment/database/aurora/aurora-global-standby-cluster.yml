@@ -294,7 +294,16 @@ Resources:
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-east-1
-
+  
+  AuroraStorageEncryptionKeyIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}'
+      Description: "KMS Key Id for Aurora Storage Encryption"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !GetAtt DBStorageEncryptionKMSKey.Arn
+      ReplicaRegions:
+        - Region: us-east-1
 Outputs:
   DBEndpoint:
     Value: !GetAtt DBCluster.Endpoint.Address
