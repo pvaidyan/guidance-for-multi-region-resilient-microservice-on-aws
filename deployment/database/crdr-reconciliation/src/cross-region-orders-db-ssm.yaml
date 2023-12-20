@@ -18,109 +18,7 @@ Parameters:
     Type: String
     
 Resources: 
-
-  CrossRegionSnapshotCopySSMAutomationRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: 
-        Fn::Join:
-        - "-"
-        - - "CRDR-SSMRole"
-          - !Ref SourceRegion
-          - Fn::Select:
-            - 0
-            - Fn::Split:
-              - "-"
-              - Fn::Select:
-                - 2
-                - Fn::Split:
-                  - "/"
-                  - !Ref AWS::StackId
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Action:
-            - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service:
-              - ssm.amazonaws.com
-      Path: "/"
-      Policies:
-        - PolicyName: 
-            Fn::Join:
-            - "-"
-            - - "CRDR-SSMPolicy"
-              - !Ref SourceRegion
-              - Fn::Select:
-                - 0
-                - Fn::Split:
-                  - "-"
-                  - Fn::Select:
-                    - 2
-                    - Fn::Split:
-                      - "/"
-                      - !Ref AWS::StackId
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: ["rds:*"]
-                Resource: 
-                  - !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-${GlobalClusterIdentifier}${Env}}}'                  
-                  - Fn::Join:
-                    - ":"
-                    - - "arn:aws:rds"
-                      - !Ref SourceRegion
-                      - !Ref AWS::AccountId
-                      - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
-                          - 'db-snapshot-*'
-                   
-              - Effect: Allow
-                Action: ["rds:DescribeDBClusterSnapshots"]
-                Resource: 
-                  - "*"
-              - Effect: Allow
-                Action: ["rds:CopyDBClusterSnapshot", "rds:AddTagsToResource"]
-                Resource: 
-                  - Fn::Join:
-                    - ":"
-                    - - "arn:aws:rds"
-                      - !Ref SourceRegion
-                      - !Ref AWS::AccountId
-                      - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - - !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}' 
-                          - 'db-snapshot-*'
-                  - Fn::Join:                    
-                    - ":"
-                    - - "arn:aws:rds"
-                      - !Ref TargetRegion
-                      - !Ref AWS::AccountId
-                      - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - - !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}' 
-                          - 'db-snapshot-*'
-              - Effect: Allow
-                Action: ["kms:DescribeKey","kms:CreateGrant"]
-                Resource:  
-                  - !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-StorageEncryptionKeyArn${Env}}}'                
-                  - !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}}}' 
-                  
-  CrossRegionSnapshotCopySSMAutomationRoleArn:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: "mr-app/CrossRegionSnapshotCopySSMAutomationRoleArn"
-      Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
-      KmsKeyId: "alias/aws/secretsmanager"
-      SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
-      ReplicaRegions:
-        - Region: us-west-2
+  
   CrossRegionSnapshotCopySSMAutomation:
     Type: AWS::SSM::Document
     Properties:
@@ -142,7 +40,7 @@ Resources:
       Content:
         description: Aurora RDS Cluster Snapshot and Copy Automation Document
         schemaVersion: '0.3'
-        assumeRole: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
+        assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
         mainSteps:
           - name: CreateSnapshot
             action: 'aws:executeAwsApi'
@@ -190,7 +88,7 @@ Resources:
                 kmstargetkey: !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}}}' 
               Script: |-
                 def script_handler(event, context):
-                  import boto3, json, os
+                  import boto3, json, os,botocore
                   # Input parameters are provided by SSM document    
                   snapshotid = event.get("snapshotid")
                   snapshotarn = event.get("snapshotarn")
@@ -234,5 +132,5 @@ Outputs:
   AutomationDocument:
     Value: !Ref CrossRegionSnapshotCopySSMAutomation
   SSMAutomationRole:
-    Value: !Ref CrossRegionSnapshotCopySSMAutomationRole
+    Value: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
     

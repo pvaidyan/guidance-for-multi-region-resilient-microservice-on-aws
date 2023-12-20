@@ -111,11 +111,15 @@ Resources:
                 Resource:  
                   - !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-StorageEncryptionKeyArn${Env}}}'                
                   - !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}}}' 
+              - Effect: Allow
+                Action: ["lambda:InvokeAsync","lambda:InvokeFunction"]
+                Resource: 
+                    - "*"
                   
   CrossRegionSnapshotCopySSMAutomationRoleArn:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: "mr-app/CrossRegionSnapshotCopySSMAutomationRoleArn"
+      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}'
       Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
       KmsKeyId: "alias/aws/secretsmanager"
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
