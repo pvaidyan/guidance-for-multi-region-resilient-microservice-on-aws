@@ -99,6 +99,10 @@ Resources:
           - !Sub '{{resolve:ssm:Subnet2}}'
           - !Sub '{{resolve:ssm:Subnet3}}'        
         Ipv6AllowedForDualStack: false
+      Environment:
+        Variables:
+          user_name: !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-UserCredentials${Env}:SecretString:username}}'
+          password: !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-UserCredentials${Env}:SecretString:password}}'
       Layers:
         - !Ref libs
       Policies:
@@ -184,21 +188,71 @@ Resources:
                 Engine: aurora-mysql
                 SnapshotIdentifier : !Sub "{{SnapshotArn}}"
                 KmsKeyId:  !Sub '{{resolve:secretsmanager:mr-app/${NamingPrefix}-${TargetRegion}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}}}' 
+                ServerlessV2ScalingConfiguration:
+                  MinCapacity: 1
+                  MaxCapacity: 8
               outputs:
                 - Name: ReconciliationClusterId
-                  Selector: $. DBCluster.DBClusterIdentifier 
+                  Selector: $.DBCluster.DBClusterIdentifier 
                   Type: String
                 - Name: ReconciliationClusterArn
-                  Selector: $. DBCluster.DBClusterArn 
+                  Selector: $.DBCluster.DBClusterArn 
                   Type: String
+                - Name: ReconciliationClusterEndpoint
+                  Selector: $.DBCluster.Endpoint 
+                  Type: String
+                  
             - name: waitForDBCompletion
               action: 'aws:waitForAwsResourceProperty'
               inputs:
                 Service: rds
+                Api: DescribeDBClusters
                 DBClusterIdentifier: '{{RestoreSnapshot.ReconciliationClusterId}}'
                 PropertySelector: '$.DBClusters[0].Status'
                 DesiredValues:
                   - available
+            
+            - name: CreateDBInstance 
+              action: 'aws:executeAwsApi'
+              inputs:
+                Service: rds
+                Api: CreateDBInstance                 
+                DBInstanceIdentifier:
+                  Fn::Join:
+                  - "-"
+                  - - "orders-recociliation-db-Instance"
+                    - !Ref TargetRegion         
+                    - Fn::Select:
+                      - 0
+                      - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                          - 2
+                          - Fn::Split:
+                            - "/"
+                            - !Ref AWS::StackId
+                DBClusterIdentifier: '{{RestoreSnapshot.ReconciliationClusterId}}'
+                Engine: aurora-mysql
+                DBInstanceClass: "db.serverless"                                
+              outputs:
+                - Name: ReconciliationDBInstanceId
+                  Selector: $.DBInstance.DBInstanceIdentifier  
+                  Type: String
+                - Name: ReconciliationDBInstanceArn
+                  Selector: $.DBInstance.DBInstanceArn  
+                  Type: String               
+
+
+            - name: waitForDBInstance
+              action: 'aws:waitForAwsResourceProperty'
+              inputs:
+                Service: rds
+                Api: DescribeDBInstances
+                DBInstanceIdentifier: '{{CreateDBInstance.ReconciliationDBInstanceId}}'
+                PropertySelector: '$.DBInstances[0].DBInstanceStatus'
+                DesiredValues:
+                  - available
+
             - name: ExecuteLambda
               action: 'aws:invokeLambdaFunction'
               onFailure: Abort
@@ -207,10 +261,8 @@ Resources:
               inputs:
                 FunctionName: !Ref LambdaFunction
                 InputPayload: 
-                  source_db_arn : '{{RestoreSnapshot.ReconciliationClusterArn}}'
-                  target_db_arn: !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-${GlobalClusterIdentifier}${Env}}}'
-                  user_name: !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-UserCredentials${Env}:SecretString:username}}'
-                  password: !Sub '{{resolve:secretsmanager:mr-app/orders-${GlobalClusterIdentifier}-UserCredentials${Env}:SecretString:password}}'
+                  source_db_endpoint : '{{RestoreSnapshot.ReconciliationClusterEndpoint}}'
+                  target_db_endpoint: !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-${GlobalClusterIdentifier}-endpoint${Env}}}'                  
                   db_name: orders
 
 Outputs:      

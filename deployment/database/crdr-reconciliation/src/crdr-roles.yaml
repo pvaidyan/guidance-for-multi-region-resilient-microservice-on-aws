@@ -78,7 +78,31 @@ Resources:
                         - "-"
                         - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
                           - 'db-snapshot-*'
-                   
+                  - Fn::Join:
+                    - ":"
+                    - - "arn:aws:rds"
+                      - !Ref TargetRegion
+                      - !Ref AWS::AccountId
+                      - "cluster-snapshot"
+                      - Fn::Join:
+                        - "-"
+                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
+                          - 'db-snapshot-*'
+                  - Fn::Join:
+                    - ":"
+                    - - "arn:aws:rds"
+                      - !Ref TargetRegion
+                      - !Ref AWS::AccountId
+                      - "cluster"
+                      - "orders-recociliation-db-cluster-*"
+                  - Fn::Join:
+                    - ":"
+                    - - "arn:aws:rds"
+                      - !Ref TargetRegion
+                      - !Ref AWS::AccountId
+                      - "db"
+                      - "orders-recociliation-db-instance-*"
+
               - Effect: Allow
                 Action: ["rds:DescribeDBClusterSnapshots"]
                 Resource: 

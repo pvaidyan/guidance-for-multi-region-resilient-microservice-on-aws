@@ -14,18 +14,20 @@ def lambda_handler(event, context):
 
     client = boto3.client('rds')
     
-    source_db_arn = event.get("source_db_arn")
-    target_db_arn = event.get("target_db_arn")
-    user_name = event.get("user_name")
-    password = event.get("password")
+    source_db_endpoint = event.get("source_db_endpoint")
+    target_db_endpoint = event.get("target_db_endpoint")
+    user_name = os.environ["user_name"]
+    password = os.environ["password"]
+    # user_name = event.get("user_name")
+    # password = event.get("password")
     db_name = event.get("db_name")
     
     src_results = []
     target_results = []
     try:
 
-        print("source db: " + source_db_arn)
-        print("target db:" + target_db_arn)
+        print("source db endpoint: " + source_db_endpoint)
+        print("target db endpoint:" + target_db_endpoint)
         print("user:" + str(user_name))
         print("database:" + db_name)
         
@@ -66,7 +68,7 @@ def lambda_handler(event, context):
                 target_results.append(id)
         print("Total no of orders in the restored snapshot:" + str(len(target_results)))
         
-        # find the 
+        # find the diff of orders in the fail-over DB and the restored snapshot in the DR region
         diff = find_diff(src_results, target_results)
         return diff
         
@@ -74,7 +76,7 @@ def lambda_handler(event, context):
         logger.error(e)
         raise
 
-    return("reconcliation done!!!")
+    return("reconcliation report generated!!!")
 
 def read_from_db(table_name, conn):
     try:
