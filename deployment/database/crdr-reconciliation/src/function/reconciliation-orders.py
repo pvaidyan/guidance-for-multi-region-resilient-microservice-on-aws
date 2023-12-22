@@ -26,13 +26,13 @@ def lambda_handler(event, context):
     target_results = []
     try:
 
-        print("source db endpoint: " + source_db_endpoint)
-        print("target db endpoint:" + target_db_endpoint)
+        print("source db endpoint: " + str(source_db_endpoint))
+        print("target db endpoint:" + str(target_db_endpoint))
         print("user:" + str(user_name))
         print("database:" + db_name)
         
         try:
-            src_conn = pymysql.connect(host=source_db_arn, user=user_name, passwd=password, db=db_name, connect_timeout=5)
+            src_conn = pymysql.connect(host=source_db_endpoint, user=user_name, passwd=password, db=db_name, connect_timeout=5)
 
         except pymysql.MySQLError as e:
             logger.error("ERROR: Unexpected error: Could not connect to MySQL instance.")
@@ -42,7 +42,7 @@ def lambda_handler(event, context):
         logger.info("SUCCESS: Connection to Source RDS for MySQL instance succeeded")
         
         try:
-            target_conn = pymysql.connect(host= target_db_arn, user=user_name, passwd=password, db=db_name, connect_timeout=5)
+            target_conn = pymysql.connect(host= target_db_endpoint, user=user_name, passwd=password, db=db_name, connect_timeout=5)
 
         except pymysql.MySQLError as e:
             logger.error("ERROR: Unexpected error: Could not connect to MySQL instance.")

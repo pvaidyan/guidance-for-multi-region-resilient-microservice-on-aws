@@ -18,7 +18,7 @@ Parameters:
     Description: Enter the Standby Region
     Default: "us-west-2"
   DBClusterIdentifier:
-    Default: recociliation-db-cluster
+    Default: reconciliation-db-cluster
     Type: String
   GlobalClusterIdentifier:
     Default: global-db-cluster

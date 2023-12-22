@@ -20,12 +20,22 @@ Parameters:
     Description: Enter the Standby Region
     Default: us-west-2
   DBClusterIdentifier:
-    Default: recociliation-db-cluster
+    Default: reconciliation-db-cluster
     Type: String
   GlobalClusterIdentifier:
     Default: global-db-cluster
     Type: String
 Resources:
+  SubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      SubnetIds:
+      - Fn::Sub: '{{resolve:ssm:Subnet1${Env}}}'
+      - Fn::Sub: '{{resolve:ssm:Subnet2${Env}}}'
+      - Fn::Sub: '{{resolve:ssm:Subnet3${Env}}}'
+      DBSubnetGroupDescription: orders-subnet-group
+      DBSubnetGroupName:
+        Fn::Sub: ${NamingPrefix}-${DBClusterIdentifier}-subnet-group${Env}
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -83,7 +93,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: reconciliation-orders.lambda_handler
-      CodeUri: s3://lambda-artifacts-eddbc25f92c79902/85a55c9a38867b94fed2d757ecb2be76
+      CodeUri: s3://lambda-artifacts-eddbc25f92c79902/6538deb036c14deafe1d9f000a3a9a76
       Runtime: python3.12
       Architectures:
       - x86_64
@@ -130,7 +140,7 @@ Resources:
           Action:
           - rds:*
           Resource:
-          - Fn::Sub: arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:orders-recociliation-db-cluster-*
+          - Fn::Sub: arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:orders-reconciliation-db-cluster-*
           - Fn::Sub: '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-global-db-cluster${Env}}}'
   libs:
     Type: AWS::Serverless::LayerVersion
@@ -177,7 +187,7 @@ Resources:
             DBClusterIdentifier:
               Fn::Join:
               - '-'
-              - - orders-recociliation-db-cluster
+              - - orders-reconciliation-db-cluster
                 - Ref: TargetRegion
                 - Fn::Select:
                   - 0
@@ -191,11 +201,21 @@ Resources:
             Engine: aurora-mysql
             SnapshotIdentifier:
               Fn::Sub: '{{SnapshotArn}}'
+            EnableIAMDatabaseAuthentication: true
             KmsKeyId:
               Fn::Sub: '{{resolve:secretsmanager:mr-app/${NamingPrefix}-${TargetRegion}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}}}'
             ServerlessV2ScalingConfiguration:
               MinCapacity: 1
               MaxCapacity: 8
+            DBSubnetGroupName:
+              Ref: SubnetGroup
+            VpcSecurityGroupIds:
+            - Fn::Sub: '{{resolve:ssm:orders-aurora-mysql-sg-${AWS::Region}${Env}}}'
+            DeletionProtection: false
+            Tags:
+            - Key: NamingPrefix
+              Value:
+                Ref: NamingPrefix
           outputs:
           - Name: ReconciliationClusterId
             Selector: $.DBCluster.DBClusterIdentifier
@@ -223,7 +243,7 @@ Resources:
             DBInstanceIdentifier:
               Fn::Join:
               - '-'
-              - - orders-recociliation-db-Instance
+              - - orders-reconciliation-db-Instance
                 - Ref: TargetRegion
                 - Fn::Select:
                   - 0
