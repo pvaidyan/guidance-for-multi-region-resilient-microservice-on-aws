@@ -34,8 +34,7 @@ Resources:
       - Fn::Sub: '{{resolve:ssm:Subnet2${Env}}}'
       - Fn::Sub: '{{resolve:ssm:Subnet3${Env}}}'
       DBSubnetGroupDescription: orders-subnet-group
-      DBSubnetGroupName:
-        Fn::Sub: ${NamingPrefix}-${DBClusterIdentifier}-subnet-group${Env}
+      DBSubnetGroupName: orders-recon-dbcluster-subnet-group
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -184,20 +183,7 @@ Resources:
           inputs:
             Service: rds
             Api: RestoreDBClusterFromSnapshot
-            DBClusterIdentifier:
-              Fn::Join:
-              - '-'
-              - - orders-reconciliation-db-cluster
-                - Ref: TargetRegion
-                - Fn::Select:
-                  - 0
-                  - Fn::Split:
-                    - '-'
-                    - Fn::Select:
-                      - 2
-                      - Fn::Split:
-                        - /
-                        - Ref: AWS::StackId
+            DBClusterIdentifier: orders-recon-dbcluster-{{automation:EXECUTION_ID}}
             Engine: aurora-mysql
             SnapshotIdentifier:
               Fn::Sub: '{{SnapshotArn}}'
@@ -240,20 +226,7 @@ Resources:
           inputs:
             Service: rds
             Api: CreateDBInstance
-            DBInstanceIdentifier:
-              Fn::Join:
-              - '-'
-              - - orders-reconciliation-db-Instance
-                - Ref: TargetRegion
-                - Fn::Select:
-                  - 0
-                  - Fn::Split:
-                    - '-'
-                    - Fn::Select:
-                      - 2
-                      - Fn::Split:
-                        - /
-                        - Ref: AWS::StackId
+            DBInstanceIdentifier: orders-recon-dbinstance-{{automation:EXECUTION_ID}}
             DBClusterIdentifier: '{{RestoreSnapshot.ReconciliationClusterId}}'
             Engine: aurora-mysql
             DBInstanceClass: db.serverless
