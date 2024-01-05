@@ -39,49 +39,25 @@ Resources:
                   - !Ref AWS::StackId
       Content:
         description: Aurora RDS Cluster Snapshot and Copy Automation Document
+        parameters:
+          SourceDBsnapshotArn:
+            type: "String"
+            description: "(Required) Arn of the cross region DR snapshot"
+            default: ""
+          # DBSnapshotIdentifier:
+          #   type: "String"
+          #   description: "(Required)DB Snapshot Identifier for the new snapshot"
+          #   default: ""            
         schemaVersion: '0.3'
         assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
-        mainSteps:
-          - name: CreateSnapshot
-            action: 'aws:executeAwsApi'
-            inputs:
-              Service: rds
-              Api: CreateDBClusterSnapshot
-              DBClusterSnapshotIdentifier: 
-                Fn::Join:
-                  - "-"
-                  - - !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}' 
-                    - 'db-snapshot-{{automation:EXECUTION_ID}}'
-              DBClusterIdentifier: !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}' 
-            outputs:
-              - Name: SnapShotId
-                Selector: $.DBClusterSnapshot.DBClusterSnapshotIdentifier
-                Type: String
-              - Name: DBClusterId
-                Selector: $.DBClusterSnapshot.DBClusterIdentifier
-                Type: String
-              - Name: DBClusterSnapshotArn
-                Selector: $.DBClusterSnapshot.DBClusterSnapshotArn
-                Type: String              
-          - name: waitForSnapshotCompletion
-            action: 'aws:waitForAwsResourceProperty'
-            inputs:
-              Service: rds
-              Api: DescribeDBClusterSnapshots
-              DBClusterSnapshotIdentifier: '{{CreateSnapshot.SnapShotId}}'                
-              DBClusterIdentifier: '{{CreateSnapshot.DBClusterId}}'
-              PropertySelector: '$.DBClusterSnapshots[0].Status'
-              DesiredValues:
-                - available
-          - name: ExecuteCode
+        mainSteps:          
+          - name: CopyFailoverSnapshot
             action: 'aws:executeScript'
             inputs:
               Runtime: python3.7
               Handler: script_handler
-              InputPayload:
-                snapshotid: '{{CreateSnapshot.SnapShotId}}'
-                snapshotarn: '{{CreateSnapshot.DBClusterSnapshotArn}}'
-                dbclusterid: '{{CreateSnapshot.DBClusterId}}'
+              InputPayload:                
+                SourceDBsnapshotArn: !Sub "{{SourceDBsnapshotArn}}"                
                 automationid: '{{automation:EXECUTION_ID}}'
                 sourceregion: !Ref SourceRegion
                 targetregion: !Ref TargetRegion
@@ -90,16 +66,17 @@ Resources:
                 def script_handler(event, context):
                   import boto3, json, os,botocore
                   # Input parameters are provided by SSM document    
-                  snapshotid = event.get("snapshotid")
-                  snapshotarn = event.get("snapshotarn")
-                  dbclusterid = event.get("dbclusterid")
+                  # DBSnapshotIdentifier = event.get("DBSnapshotIdentifier")
+                  SourceDBsnapshotArn = event.get("SourceDBsnapshotArn")
+
+                  DBSnapshotIdentifier = str(SourceDBsnapshotArn).split(":")[-1]
+                  
                   sourceregion = event.get("sourceregion")
                   targetregion = event.get("targetregion")
                   kmstargetkey = event.get("kmstargetkey")
                   
-                  print(snapshotid)
-                  print(snapshotarn)
-                  print(dbclusterid)
+                  print(DBSnapshotIdentifier)
+                  print(SourceDBsnapshotArn)                  
                   print(kmstargetkey)
 
                   # Define Target region in the region_name.Following API
@@ -108,8 +85,8 @@ Resources:
                   client = boto3.client('rds', region_name=targetregion)
                   try: 
                     response = client.copy_db_cluster_snapshot(
-                        SourceDBClusterSnapshotIdentifier=snapshotarn,
-                        TargetDBClusterSnapshotIdentifier=snapshotid,
+                        SourceDBClusterSnapshotIdentifier=SourceDBsnapshotArn,
+                        TargetDBClusterSnapshotIdentifier=DBSnapshotIdentifier,
                         KmsKeyId=kmstargetkey, # KMS Key ID in Target region
                         CopyTags=False,
                         Tags=[
