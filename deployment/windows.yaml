@@ -47,7 +47,7 @@ Resources:
   WindowsPassword:
     Type: "AWS::SecretsManager::Secret"
     Properties:
-      Name: !Sub 'mr-app-windowspassword${Env}'
+      Name: !Sub 'mr-app-windowspassword-${AWS::Region}${Env}'
       GenerateSecretString: 
         PasswordLength: 15
         ExcludePunctuation: true
