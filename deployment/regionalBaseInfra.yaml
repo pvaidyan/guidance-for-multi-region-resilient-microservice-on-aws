@@ -18,6 +18,11 @@ Parameters:
     Type: String
     Description: Enter the Standby Region
     Default: "us-west-2"
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id
+
 
 Mappings:
   RegionMap:
@@ -235,28 +240,63 @@ Resources:
   CheckoutRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'checkout${Env}'
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
   CatalogRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+          ScanOnPush: true
       RepositoryName: !Sub 'catalog${Env}'
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
   CartsRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'carts${Env}'
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
   AssetsRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'assets${Env}'
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
   OrdersRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'orders${Env}'
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
   UIRepo:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
       RepositoryName: !Sub 'ui${Env}'
-
+      ImageTagMutability: IMMUTABLE
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !Ref KmsKey
 
 # Canary Security Group - In this stack since it take Lambda 20 mins to delete the ENIs it manages
   canarySg:

@@ -65,7 +65,7 @@ Resources:
     Properties:
       Name: !Sub VpcId-${AWS::Region}${Env}
       Description: "VPC Id"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref Vpc
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
@@ -82,7 +82,7 @@ Resources:
     Properties:
       Name: !Sub VpcPeerId${Env}
       Description: "VPC Id"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref Peer
       ReplicaRegions:
         - Region: !Ref PrimaryRegion
@@ -164,6 +164,11 @@ Resources:
   canaryBucket:
     Type: AWS::S3::Bucket
     Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       IntelligentTieringConfigurations: 
         -
           Id: default
@@ -199,3 +204,33 @@ Resources:
       Type: String
       Name: !Sub canaryBucketArn${Env}
       Value: !GetAtt canaryBucket.Arn
+
+  KmsKey:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Enabled: true
+      EnableKeyRotation: true
+      Description: "retail-store-ar CMK"
+      KeyUsage: "ENCRYPT_DECRYPT"
+      KeyPolicy: !Sub |
+          {
+            "Version" : "2012-10-17",
+            "Id" : "key-default-1",
+            "Statement" : [ {
+              "Sid" : "Enable IAM User Permissions",
+              "Effect" : "Allow",
+              "Principal" : {
+                "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
+              },
+              "Action" : "kms:*",
+              "Resource" : "*"
+            } ]
+          }
+      KeySpec: "SYMMETRIC_DEFAULT"
+      MultiRegion: false
+  KmsKeyParam:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Type: String
+      Name: !Sub retail-store-ar${Env}
+      Value: !Ref KmsKey

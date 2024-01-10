@@ -48,6 +48,10 @@ Parameters:
     Type: String
     Description: Enter the Standby Region
     Default: "us-west-2"
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id 
 
 Conditions:
   isPrimary: !Equals
@@ -75,6 +79,7 @@ Resources:
   DBCredentialsSecret:
     Type: 'AWS::SecretsManager::Secret'
     Properties:
+      KmsKeyId: !Ref KmsKey
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-UserCredentials${Env}'
       Description: "Secret that has the user credentials for the database"
       GenerateSecretString:
@@ -124,7 +129,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-StorageEncryptionKeyArn${Env}'
       Description: "KMS Key Arn for Aurora Storage Encryption"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBStorageEncryptionKMSKey.Arn
       ReplicaRegions:
         - Region: !If [ isPrimary, us-west-2, us-east-1 ]
@@ -236,7 +241,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-MonitoringIAMRoleArn${Env}'
       Description: "Aurora DB Monitoring IAM Role Arn"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBIamRoleForMonitoring.Arn
       ReplicaRegions:
         - Region: us-west-2
@@ -245,7 +250,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}${Env}'
       Description: !Sub 'GlobalClusterIdentifier for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Sub '${NamingPrefix}-${GlobalClusterIdentifier}${Env}'
       ReplicaRegions:
         - Region: us-west-2
@@ -254,7 +259,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}${Env}'
       Description: !Sub 'DBCluster Arn for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-west-2

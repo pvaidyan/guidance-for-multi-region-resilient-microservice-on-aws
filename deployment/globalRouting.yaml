@@ -17,6 +17,11 @@ Parameters:
   DomainName:
     Type: String
     Description: The name of the domain that you want created as a private hosted zone in Route53
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id
+
 
 Resources:
   ##### Application Recovery Controller#######
@@ -66,7 +71,7 @@ Resources:
     Properties:
       Name: !Sub ArcRoutingControlPrimarySecret${Env}
       Description: "ARC Routing Control ARN"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref ArcRoutingControlPrimary
       ReplicaRegions:
         - Region: !Ref StandbyRegion
@@ -82,7 +87,7 @@ Resources:
     Properties:
       Name: !Sub ArcRoutingControlStandbySecret${Env}
       Description: "ARC Routing Control ARN"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref ArcRoutingControlStandby
       ReplicaRegions:
         - Region: !Ref StandbyRegion
@@ -98,7 +103,7 @@ Resources:
     Properties:
       Name: !Sub ArcClusterSecret${Env}
       Description: "ARC Cluster ARN"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref ArcCluster
       ReplicaRegions:
         - Region: !Ref StandbyRegion
@@ -360,7 +365,7 @@ Resources:
     Properties:
       Name: !Sub DNSRecordSecret${Env}
       Description: "Route53 DNS"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Ref PrimaryRegionRecord
       ReplicaRegions:
         - Region: !Ref StandbyRegion
