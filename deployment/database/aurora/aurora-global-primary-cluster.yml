@@ -263,7 +263,15 @@ Resources:
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-west-2
-
+  DBClusterIdentifier:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-DBClusterIdentifier${Env}'
+      Description: !Sub 'DBClusterIdentifier for ${NamingPrefix}'
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !Sub '${NamingPrefix}-${ClusterName}-${AWS::Region}${Env}'
+      ReplicaRegions:
+        - Region: us-west-2
 Outputs:
   GlobalDBCluster:
     Value: !Ref GlobalDBCluster

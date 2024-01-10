@@ -184,7 +184,7 @@ Resources:
       DBInstanceIdentifier: !Sub '${NamingPrefix}-${ClusterName}${Env}-2'
       DBInstanceClass: !Ref MachineType
       DBSubnetGroupName: !Ref SubnetGroup
-      Engine: aurora-mysql
+      Engine: aurora-mysql      
       PubliclyAccessible: false
       MonitoringRoleArn: !Sub '{{resolve:secretsmanager:mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-MonitoringIAMRoleArn${Env}}}'
       MonitoringInterval: 1
@@ -294,7 +294,26 @@ Resources:
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-east-1
-
+  
+  DBClusterEndpoint:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}-endpoint${Env}'
+      Description: !Sub 'DBCluster Endpoint for ${NamingPrefix}'
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !GetAtt DBCluster.Endpoint.Address
+      ReplicaRegions:
+        - Region: us-east-1
+  
+  AuroraStorageEncryptionKeyIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}'
+      Description: "KMS Key Id for Aurora Storage Encryption"
+      KmsKeyId: "alias/aws/secretsmanager"
+      SecretString: !GetAtt DBStorageEncryptionKMSKey.Arn
+      ReplicaRegions:
+        - Region: us-east-1
 Outputs:
   DBEndpoint:
     Value: !GetAtt DBCluster.Endpoint.Address
