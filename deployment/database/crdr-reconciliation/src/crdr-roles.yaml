@@ -74,20 +74,15 @@ Resources:
                       - !Ref SourceRegion
                       - !Ref AWS::AccountId
                       - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
-                          - 'db-snapshot-*'
+                      - "rds"
+                      - "unplanned-global-failover-orders-dbcluster-01-us-east-1-*"
                   - Fn::Join:
                     - ":"
                     - - "arn:aws:rds"
                       - !Ref TargetRegion
                       - !Ref AWS::AccountId
                       - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
-                          - 'db-snapshot-*'
+                      - "unplanned-global-failover-orders-dbcluster-01-us-east-1-*"
                   - Fn::Join:
                     - ":"
                     - - "arn:aws:rds"
