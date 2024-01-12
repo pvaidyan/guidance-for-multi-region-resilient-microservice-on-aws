@@ -173,7 +173,7 @@ Resources:
             description: "(Required) Arn of the cross region DR snapshot"
             default: ""
         schemaVersion: '0.3'
-        assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
+        assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn}}'   
         mainSteps:
             - name: RestoreSnapshot 
               action: 'aws:executeAwsApi'

@@ -92,7 +92,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: reconciliation-orders.lambda_handler
-      CodeUri: s3://lambda-artifacts-eddbc25f92c79902/6538deb036c14deafe1d9f000a3a9a76
+      CodeUri: s3://crdr-lambda-artifacts-01ec4395d0b5996e/af7f9553b788fee6713d5684382a3de7
       Runtime: python3.12
       Architectures:
       - x86_64
@@ -146,7 +146,7 @@ Resources:
     Properties:
       LayerName: reconcliliation-python-function-lib
       Description: Dependencies for the reconcliliation-python function.
-      ContentUri: s3://lambda-artifacts-eddbc25f92c79902/d12575cf37417c710d4b0af584ca096b
+      ContentUri: s3://crdr-lambda-artifacts-01ec4395d0b5996e/df21ec159f1b17b58eca7c29f6f7a026
       CompatibleRuntimes:
       - python3.12
   CrossRegionSnapshotRestoreSSMAutomation:
@@ -176,7 +176,7 @@ Resources:
             default: ''
         schemaVersion: '0.3'
         assumeRole:
-          Fn::Sub: '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'
+          Fn::Sub: '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn}}'
         mainSteps:
         - name: RestoreSnapshot
           action: aws:executeAwsApi
