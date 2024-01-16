@@ -49,7 +49,7 @@ Resources:
           #   description: "(Required)DB Snapshot Identifier for the new snapshot"
           #   default: ""            
         schemaVersion: '0.3'
-        assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
+        assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn}}'   
         mainSteps:          
           - name: CopyFailoverSnapshot
             action: 'aws:executeScript'
@@ -108,6 +108,5 @@ Resources:
 Outputs:
   AutomationDocument:
     Value: !Ref CrossRegionSnapshotCopySSMAutomation
-  SSMAutomationRole:
-    Value: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}}}'   
+   
     

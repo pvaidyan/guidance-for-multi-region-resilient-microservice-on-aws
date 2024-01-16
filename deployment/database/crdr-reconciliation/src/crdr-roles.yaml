@@ -25,8 +25,7 @@ Resources:
       RoleName: 
         Fn::Join:
         - "-"
-        - - "CRDR-SSMRole"
-          - !Ref SourceRegion
+        - - "CRDR-SSMRole"          
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -74,20 +73,15 @@ Resources:
                       - !Ref SourceRegion
                       - !Ref AWS::AccountId
                       - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
-                          - 'db-snapshot-*'
+                      - "rds"
+                      - "unplanned-global-failover-orders-dbcluster-01-us-east-1-*"
                   - Fn::Join:
                     - ":"
                     - - "arn:aws:rds"
                       - !Ref TargetRegion
                       - !Ref AWS::AccountId
                       - "cluster-snapshot"
-                      - Fn::Join:
-                        - "-"
-                        - -  !Sub '{{resolve:secretsmanager:mr-app/orders-${SourceRegion}-DBClusterIdentifier${Env}}}'               
-                          - 'db-snapshot-*'
+                      - "unplanned-global-failover-orders-dbcluster-01-us-east-1-*"
                   - Fn::Join:
                     - ":"
                     - - "arn:aws:rds"
@@ -127,7 +121,7 @@ Resources:
   CrossRegionSnapshotCopySSMAutomationRoleArn:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}'
+      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn'
       Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
       KmsKeyId: "alias/aws/secretsmanager"
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
