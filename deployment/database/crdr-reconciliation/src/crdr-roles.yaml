@@ -25,8 +25,7 @@ Resources:
       RoleName: 
         Fn::Join:
         - "-"
-        - - "CRDR-SSMRole"
-          - !Ref SourceRegion
+        - - "CRDR-SSMRole"          
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -122,7 +121,7 @@ Resources:
   CrossRegionSnapshotCopySSMAutomationRoleArn:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn-${SourceRegion}'
+      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn'
       Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
       KmsKeyId: "alias/aws/secretsmanager"
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn

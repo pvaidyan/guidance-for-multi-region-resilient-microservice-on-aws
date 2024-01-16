@@ -1,2 +1,6 @@
 .idea
 **/.DS_Store
+**/__pycache__/
+**/package/python/
+**/out.yaml
+**/restore-reconcile-orders-ssm.yaml
