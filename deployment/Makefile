@@ -249,7 +249,7 @@ test-creds:
 destroy-all: destroy-peer 
 	@echo "Removed all cloudformation stacks!!!"
 
-destory-restore-reconciliation-ssm: destroy-peer 	
+destory-restore-reconciliation-ssm:  	
 	@echo "Deleteing SSM automation runbook in ${PRIMARY_REGION}"
 	@aws cloudformation delete-stack --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION}	
@@ -276,7 +276,7 @@ destroy-ecr-standby: destroy-apps-standby
 	@aws ecr delete-repository --force --repository-name assets${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 	@aws ecr delete-repository --force --repository-name orders${ENV} --region $(STANDBY_REGION) --no-cli-pager || true
 
-destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary
+destroy-global_routing: destroy-canaries-standby destroy-canaries-primary destroy-failover-standby destroy-failover-primary destory-restore-reconciliation-ssm
 	@echo "Deleting global routing stack..."
 	@aws cloudformation delete-stack --stack-name gr${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name gr${ENV} --region ${PRIMARY_REGION}
