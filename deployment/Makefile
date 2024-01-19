@@ -226,7 +226,6 @@ restore-reconciliation: primary_infrastructure primary_region_orders-db standby_
 	@aws cloudformation wait stack-create-complete --stack-name crdr-roles${ENV}  --region ${PRIMARY_REGION}
 	@echo "Creating SSM automation runbook in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./database/crdr-reconciliation/src/cross-region-orders-db-ssm.yaml --parameter-overrides Env=${ENV} --capabilities CAPABILITY_NAMED_IAM --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
-	@aws cloudformation wait stack-create-complete --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
 
 	@echo "Creating reconciliation resources in ${STANDBY_REGION}"
 	@echo "Step 1:Building Lambda Layers"
@@ -235,7 +234,6 @@ restore-reconciliation: primary_infrastructure primary_region_orders-db standby_
 	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
 	@aws cloudformation package --template-file ./database/crdr-reconciliation/src/restore-reconcile-orders-ssm.yaml --region ${STANDBY_REGION} --s3-bucket $(result) --output-template-file ./database/crdr-reconciliation/src/out.yaml
 	@aws cloudformation deploy --template-file ./database/crdr-reconciliation/src/out.yaml --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV}
-	@aws cloudformation wait stack-create-complete --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION} 
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
