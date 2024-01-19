@@ -126,7 +126,7 @@ Resources:
       KmsKeyId: "alias/aws/secretsmanager"
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
       ReplicaRegions:
-        - Region: us-west-2
+        - Region: !Sub ${TargetRegion}
 
 Outputs:  
   SSMAutomationRole:

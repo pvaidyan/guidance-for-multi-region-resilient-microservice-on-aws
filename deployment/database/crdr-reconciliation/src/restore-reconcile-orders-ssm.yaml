@@ -104,9 +104,9 @@ Resources:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroup          
         SubnetIds:
-          - !Sub '{{resolve:ssm:Subnet1}}'
-          - !Sub '{{resolve:ssm:Subnet2}}'
-          - !Sub '{{resolve:ssm:Subnet3}}'        
+          - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet3${Env}}}'        
         Ipv6AllowedForDualStack: false
       Environment:
         Variables:
