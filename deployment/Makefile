@@ -254,7 +254,6 @@ destroy-restore-reconciliation-ssm:
 	@aws cloudformation wait stack-delete-complete --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION}
 	@echo "Deleteing IAM Role for restore-reconcliation"
 	@aws cloudformation delete-stack --stack-name crdr-roles${ENV} --region ${PRIMARY_REGION}
-#	$(shell aws s3api list-buckets --query 'Buckets[].[Name]' --output text | grep "^crdr-lambda-artifacts-" | xargs -n1 -IB aws s3 rb s3://B --force)
 
 destroy-ecr-primary: destroy-apps-primary
 	@echo "Deleting ECR Repos..."
