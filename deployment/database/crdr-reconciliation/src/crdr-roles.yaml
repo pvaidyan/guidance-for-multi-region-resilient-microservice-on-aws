@@ -121,7 +121,7 @@ Resources:
   CrossRegionSnapshotCopySSMAutomationRoleArn:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn'
+      Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn${Env}'
       Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
       KmsKeyId: "alias/aws/secretsmanager"
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
