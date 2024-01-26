@@ -46,8 +46,7 @@ This demonstration by default uses `us-east-1` as the primary region and `us-wes
 
 ## Deployment
 
-For the purposes of this workshop, we deploy the CloudFormation Templates and SAM Templates via a Makefile. For a production 
-workload, you'd want to have an automated deployment pipeline.  As discussed in this 
+For the purposes of this workshop, we deploy the CloudFormation Templates via a Makefile. For a production workload, you'd want to have an automated deployment pipeline.  As discussed in this 
 [article](https://aws.amazon.com/builders-library/automating-safe-hands-off-deployments/?did=ba_card&trk=ba_card), a multi-region pipeline should follow a staggered deployment schedule to reduce the blast radius of a bad deployment.  
 Take particular care with changes that introduce possibly backwards-incompatible changes like schema modifications, and make use of schema versioning.
 
@@ -63,7 +62,7 @@ Before starting deployment process please update the following variables in the 
 
 ## Deployment Steps
 
-We use make file to automate the deployment commands. The make file is optimized for [AWS Cloud9](https://aws.amazon.com/pm/cloud9/) which is Cloud Integrated Development Environment (IDE) for writing, running, and debugging code. Please go through this [document](https://docs.aws.amazon.com/cloud9/latest/user-guide/tutorial-create-environment.html) to know how to launch a AWS Cloud9 environment in the Primary Region.  
+We use make file to automate the deployment commands. The make file is optimized for Mac. If you plan to deploy the solution from another OS, you may have to update few commands.
 
 1. Deploy the full solution from the `deployment` folder
     ```shell
@@ -80,23 +79,7 @@ WIP
 
 Note: If you have created reconciliation Amazon Aurora Database Clusters and Database Instances in the Standby Region, please delete all those instances before going to the next step.
 
-```
-    aws rds delete-db-instance \
-    --db-instance-identifier orders-recon-dbinstance-[add-uniqueid-here] \
-    --skip-final-snapshot \
-    --region us-west-2
-```
-
-Once the Database instance is deleted delete the database cluster using 
-
-```
-    aws rds delete-db-cluster \
-    --db-cluster-identifier orders-recon-dbcluster-[add-uniqueid-here] \
-    --skip-final-snapshot \
-    --region us-west-2
-```
-
-1. Delete all the cloudformation stacks and associated resources from both the Regions, by running the following command from the `deployment` folder
+Delete all the cloudformation stacks and associated resources from both the Regions, by running the following command from the `deployment` folder
     ```shell 
     make destroy-all
     ```
