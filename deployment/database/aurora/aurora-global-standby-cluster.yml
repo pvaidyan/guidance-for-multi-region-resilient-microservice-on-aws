@@ -63,6 +63,11 @@ Resources:
     Properties:
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: Access to aurora mysql database
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
       Tags:
         - Key: Name
           Value: aurora-mysql-security-group
@@ -72,22 +77,6 @@ Resources:
       Type: String
       Name: !Sub '${NamingPrefix}-aurora-mysql-sg-${AWS::Region}${Env}'
       Value: !GetAtt AuroraMySqlComputeSecurityGroup.GroupId
-  # DBStorageEncryptionKMSKey:
-  #   Type: 'AWS::KMS::ReplicaKey'
-  #   Properties:
-  #     PrimaryKeyArn: !Sub '{{resolve:secretsmanager:${NamingPrefix}-${GlobalClusterIdentifier}-StorageEncryptionKeyArn${Env}}}'
-  #     Description: Multi-Region Aurora Storage Encryption Key
-  #     PendingWindowInDays: 10
-  #     KeyPolicy:
-  #       Version: 2012-10-17
-  #       Id: key-default-1
-  #       Statement:
-  #         - Sid: Enable IAM User Permissions
-  #           Effect: Allow
-  #           Principal:
-  #             AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-  #           Action: 'kms:*'
-  #           Resource: '*'
   DBStorageEncryptionKMSKey:
     Type: 'AWS::KMS::Key'
     Properties:

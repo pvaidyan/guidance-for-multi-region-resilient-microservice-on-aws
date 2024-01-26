@@ -16,10 +16,6 @@ Parameters:
     Type: String
     Default: t3.small
     ConstraintDescription: must be a valid EC2 instance type.
-  KmsKey:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: KmsKey
-    Description: CMK Id
 
 Resources:
   IamInstanceRole:

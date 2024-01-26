@@ -17,7 +17,7 @@ Parameters:
     Default: global-db-cluster
     Type: String
   KmsKey:
-    Type: String
+    Type: AWS::SSM::Parameter::Value<String>
     
 Resources: 
 

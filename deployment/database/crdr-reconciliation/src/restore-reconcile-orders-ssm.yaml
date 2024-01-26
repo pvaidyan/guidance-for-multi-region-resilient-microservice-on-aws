@@ -134,7 +134,12 @@ Resources:
               - >-
                 arn:aws:logs:us-west-2:511925798765:log-group:/aws/lambda/reconciliation-test:*
           - Effect: Allow
-            Action: ["rds:*"]              
+            Action:
+              - rds:RestoreDBClusterFromSnapshot
+              - rds:DescribeDBClusterSnapshots
+              - rds:DescribeDBClusters
+              - rds:CreateDBInstance
+              - rds:DescribeDBInstances
             Resource: 
               - !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:orders-reconciliation-db-cluster-*'
               - !Sub '{{resolve:secretsmanager:mr-app/orders-${TargetRegion}-global-db-cluster${Env}}}'
