@@ -223,7 +223,7 @@ client-standby: standby_infrastructure
 restore-reconciliation: primary_infrastructure primary_region_orders-db standby_infrastructure standby_region_orders-db
 	@echo "Creating IAM Role for restore-reconcliation"
 	@aws cloudformation deploy --template ./database/crdr-reconciliation/src/crdr-roles.yaml --parameter-overrides Env=${ENV} --capabilities CAPABILITY_NAMED_IAM --stack-name crdr-roles${ENV}  --region ${PRIMARY_REGION}
-	@aws cloudformation wait stack-create-complete --stack-name crdr-roles${ENV}  --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-create-complete --stack-name crdr-roles${ENV}  KmsKey=retail-store-ar${ENV} --region ${PRIMARY_REGION}
 	@echo "Creating SSM automation runbook in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./database/crdr-reconciliation/src/cross-region-orders-db-ssm.yaml --parameter-overrides Env=${ENV} --capabilities CAPABILITY_NAMED_IAM --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
 

@@ -16,6 +16,8 @@ Parameters:
   GlobalClusterIdentifier:
     Default: global-db-cluster
     Type: String
+  KmsKey:
+    Type: String
     
 Resources: 
 
@@ -123,7 +125,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/CRDRSSMAutomationRoleArn${Env}'
       Description: "Arn for CrossRegionSnapshotCopySSMAutomationRole"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt CrossRegionSnapshotCopySSMAutomationRole.Arn
       ReplicaRegions:
         - Region: !Sub ${TargetRegion}
