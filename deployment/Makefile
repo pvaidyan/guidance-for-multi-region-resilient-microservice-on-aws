@@ -62,7 +62,7 @@ ecr-login:
 
 build-catalog-primary: primary_infrastructure ecr-login
 	@echo "Build Catalog service Image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/catalog/; docker build -t catalog${ENV}:${TAG} .
+	@cd ../source/catalog/; docker build --platform linux/amd64 -t catalog${ENV}:${TAG} .
 	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
@@ -73,7 +73,7 @@ build-catalog-standby: standby_infrastructure ecr-login
 
 build-checkout-primary: primary_infrastructure ecr-login
 	@echo "Build Checkout service image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/checkout/; docker build -t checkout${ENV}:${TAG} .
+	@cd ../source/checkout/; docker build --platform linux/amd64 -t checkout${ENV}:${TAG} .
 	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
@@ -84,7 +84,7 @@ build-checkout-standby: standby_infrastructure ecr-login
 
 build-ui-primary: primary_infrastructure ecr-login
 	@echo "Build UI service image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/ui/; docker build -t ui${ENV}:${TAG} .
+	@cd ../source/ui/; docker build --platform linux/amd64 -t ui${ENV}:${TAG} .
 	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
@@ -95,7 +95,7 @@ build-ui-standby: standby_infrastructure ecr-login
 
 build-carts-primary: primary_infrastructure ecr-login
 	@echo "Build Carts service image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/cart/; docker build -t carts${ENV}:${TAG} .
+	@cd ../source/cart/; docker build --platform linux/amd64 -t carts${ENV}:${TAG} .
 	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
@@ -117,7 +117,7 @@ build-assets-standby: standby_infrastructure ecr-login
 
 build-orders-primary: primary_infrastructure ecr-login
 	@echo "Build Orders service image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/orders/; docker build -t orders${ENV}:${TAG} .
+	@cd ../source/orders/; docker build --platform linux/amd64 -t orders${ENV}:${TAG} .
 	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
@@ -246,6 +246,9 @@ destroy-all: destroy-peer
 	@echo "Removed all cloudformation stacks!!!"
 
 destroy-restore-reconciliation-ssm:  	
+
+	echo "Deleting Aurora database instances and clusters in ${STANDBY_REGION} region..."
+	./clean-up-aurora-cluster.sh ${STANDBY_REGION}
 	@echo "Deleteing SSM automation runbook in ${PRIMARY_REGION}"
 	@aws cloudformation delete-stack --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION}	
