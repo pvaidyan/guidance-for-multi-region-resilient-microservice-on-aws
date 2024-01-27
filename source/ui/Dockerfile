@@ -47,7 +47,7 @@ COPY ./ATTRIBUTION.md ./LICENSES.md
 COPY --chown=appuser:appuser --from=build-env /app.jar .
 
 EXPOSE 8080
-
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
 ARG JAVA_OPTS
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

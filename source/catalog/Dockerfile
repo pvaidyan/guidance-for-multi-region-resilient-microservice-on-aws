@@ -9,7 +9,7 @@ COPY . .
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source ch`anges don't invalidate our downloaded layer
 RUN go mod download
-
+RUN go mod tidy
 # Copy the go source
 
 # Build
@@ -23,5 +23,5 @@ WORKDIR /
 COPY --from=builder --chown=nonroot:nonroot  /workspace/manager .
 COPY --from=builder --chown=nonroot:nonroot  /workspace/db/migrations ./db/migrations
 ENV GIN_MODE=release
-
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
 ENTRYPOINT ["/manager"]

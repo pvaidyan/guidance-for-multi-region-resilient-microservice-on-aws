@@ -45,8 +45,8 @@ COPY --chown=appuser:appuser package.json .
 COPY --chown=appuser:appuser package-lock.json .
 
 RUN npm ci
-
-ADD . /app
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
+COPY . /app
 RUN npm run build
 
 ENTRYPOINT [ "node", "dist/main.js" ]

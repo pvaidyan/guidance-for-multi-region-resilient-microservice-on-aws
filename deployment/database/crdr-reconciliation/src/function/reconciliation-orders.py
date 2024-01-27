@@ -98,9 +98,10 @@ def read_all_orders_from_db(conn, id):
         new_cursor = conn.cursor()
     
         # query = "SELECT co.id,co.email, co.firstName, co.lastName,coi.productId, coi.name, coi.price FROM CUSTOMER_ORDER co INNER JOIN CUSTOMER_ORDER_ITEM coi ON co.id = coi.order_id where co.id IN (\"" + id_val + "\")" 
-        query = "SELECT * from CUSTOMER_ORDER where id=" + "\"" + id_val + "\""
-        print("Printing query:" + query)
-        new_cursor.execute(query)
+        # query = "SELECT * from CUSTOMER_ORDER where id=" + "\"" + id_val + "\""
+        stmt = "SELECT * from CUSTOMER_ORDER where id=:id_val"
+        print("Printing query:" + stmt)
+        new_cursor.execute(stmt, id_val=id)
         rows = new_cursor.fetchall()
         return rows
         
@@ -116,7 +117,8 @@ def read_from_db(table_name, conn):
     try:
       
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM " + table_name)
+        stmt = "SELECT id FROM :table_name"
+        cursor.execute(stmt, table_name=table_name)
         rows = cursor.fetchall()
         return rows
     except Exception as e:
