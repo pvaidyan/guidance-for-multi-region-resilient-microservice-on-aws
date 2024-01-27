@@ -50,6 +50,10 @@ Parameters:
     Default: "us-west-2"
   DBSecretArn:
     Type: String
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id 
 Conditions:
   isPrimary: !Equals
     - !Ref AWS::Region
@@ -279,7 +283,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}${Env}'
       Description: !Sub 'DBCluster Arn for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-east-1
@@ -289,7 +293,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}-endpoint${Env}'
       Description: !Sub 'DBCluster Endpoint for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBCluster.Endpoint.Address
       ReplicaRegions:
         - Region: us-east-1
@@ -299,7 +303,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}-Snapshot-KeyArn${Env}'
       Description: "KMS Key Id for Aurora Storage Encryption"
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBStorageEncryptionKMSKey.Arn
       ReplicaRegions:
         - Region: us-east-1

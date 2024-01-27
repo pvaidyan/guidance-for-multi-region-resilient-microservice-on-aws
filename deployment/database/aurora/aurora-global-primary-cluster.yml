@@ -273,7 +273,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-DBClusterIdentifier${Env}'
       Description: !Sub 'DBClusterIdentifier for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Sub '${NamingPrefix}-${ClusterName}-${AWS::Region}${Env}'
       ReplicaRegions:
         - Region: us-west-2

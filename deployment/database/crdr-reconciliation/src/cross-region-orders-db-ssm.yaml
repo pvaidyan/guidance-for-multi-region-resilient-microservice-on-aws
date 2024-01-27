@@ -43,11 +43,7 @@ Resources:
           SourceDBsnapshotArn:
             type: "String"
             description: "(Required) Arn of the cross region DR snapshot"
-            default: ""
-          # DBSnapshotIdentifier:
-          #   type: "String"
-          #   description: "(Required)DB Snapshot Identifier for the new snapshot"
-          #   default: ""            
+            default: ""           
         schemaVersion: '0.3'
         assumeRole: !Sub '{{resolve:secretsmanager:mr-app/CRDRSSMAutomationRoleArn}}'   
         mainSteps:          
