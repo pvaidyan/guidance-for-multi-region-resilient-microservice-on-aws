@@ -1,0 +1,749 @@
+{
+ "Description": "ARC Failover Automation - SSM Runbooks",
+ "AWSTemplateFormatVersion": "2010-09-09",
+ "Parameters": {
+  "Env": {
+   "Type": "String",
+   "Default": "",
+   "Description": "String to enable multiple deployments per AWS region"
+  },
+  "PrimaryRegion": {
+   "Type": "String",
+   "Default": "us-east-1",
+   "Description": "Enter the Primary Region"
+  },
+  "StandbyRegion": {
+   "Type": "String",
+   "Default": "us-west-2",
+   "Description": "Enter the Standby Region"
+  },
+  "PowerToolsLambdaLayerAccountId": {
+   "Type": "String",
+   "Default": 17000801446,
+   "Description": "The AWS AccountId where the PowerTools Python Lambda Layer is hosted"
+  },
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Resources": {
+  "LambdaExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sts:AssumeRole"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "lambda.amazonaws.com"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Path": "/",
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+         ],
+         "Resource": {
+          "Fn::Sub": "arn:aws:logs:*:${AWS::AccountId}:*"
+         }
+        },
+        {
+         "Effect": "Allow",
+         "Action": [
+          "route53-recovery-cluster:*",
+          "route53-recovery-control-config:*"
+         ],
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:route53-recovery-control::${AWS::AccountId}:cluster/*"
+          },
+          {
+           "Fn::Sub": "arn:aws:route53-recovery-control::${AWS::AccountId}:controlpanel/*"
+          },
+          {
+           "Fn::Sub": "arn:aws:route53-recovery-control::${AWS::AccountId}:controlpanel/*/routingcontrol/*"
+          }
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Action": [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:CreateSecret",
+          "secretsmanager:UpdateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:RemoveRegionsFromReplication",
+          "secretsmanager:ReplicateSecretToRegions",
+          "secretsmanager:ListSecrets"
+         ],
+         "Resource": {
+          "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*"
+         }
+        }
+       ]
+      },
+      "PolicyName": "lambdaExec"
+     }
+    ]
+   }
+  },
+  "AutomationRegionalFailoverFunction": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "import os\nimport json\nimport boto3\nfrom aws_lambda_powertools import Logger, Tracer, Metrics\nfrom aws_lambda_powertools.metrics import MetricUnit\n\nmetrics = Metrics()\ntracer = Tracer()\nlogger = Logger()\n\n@metrics.log_metrics(capture_cold_start_metric=False)\n@logger.inject_lambda_context(log_event=True, clear_state=True)\n@tracer.capture_lambda_handler\ndef lambda_handler(event, context):\n    return rotate_arc_controls(event, context)\n    \n@tracer.capture_method\ndef rotate_arc_controls(event, context):\n\n    logger.info(\"update_arc_control Invoked\")\n    endpoints = json.loads(os.environ['ARC_CLUSTER_ENDPOINTS'])\n    routing_control_primary_arn = os.environ['ARC_ROUTING_CONTROL_PRIMARY_ARN']\n    routing_control_standby_arn = os.environ['ARC_ROUTING_CONTROL_STANDBY_ARN']\n    updated_routing_control_state = \"NotUpdated\"\n    action = event['ACTION']\n    cell = event['REGION']\n    done = False\n\n    for region, endpoint in endpoints.items():\n        try:\n            logger.info(\"route 53 recovery cluster endpoint: \" + endpoint)\n            client = boto3.client('route53-recovery-cluster', region_name=region, endpoint_url=endpoint)\n\n            logger.info(\"toggling routing control\")\n      \n            if action == \"disable\":\n              routingControlState = \"Off\"\n            elif action == \"enable\":\n              routingControlState = \"On\"\n            else:\n              logger.info(\"Invalid ACTION\")\n              done = True\n              break\n\n            if cell == \"Primary\":\n              routing_control_state = client.get_routing_control_state(RoutingControlArn=routing_control_primary_arn)\n              logger.info(\"Current Routing Control State: \" + routing_control_state[\"RoutingControlState\"])\n              client.update_routing_control_state(RoutingControlArn=routing_control_primary_arn, RoutingControlState=routingControlState)\n              routing_control_state = client.get_routing_control_state(RoutingControlArn=routing_control_primary_arn)\n            elif cell == \"Standby\":\n              routing_control_state = client.get_routing_control_state(RoutingControlArn=routing_control_standby_arn)\n              logger.info(\"Current Routing Control State: \" + routing_control_state[\"RoutingControlState\"])\n              client.update_routing_control_state(RoutingControlArn=routing_control_standby_arn, RoutingControlState=routingControlState)\n              routing_control_state = client.get_routing_control_state(RoutingControlArn=routing_control_standby_arn)\n            else:\n              logger.info(\"invalid input for REGION\")\n              done = True\n              break\n\n            updated_routing_control_state = routing_control_state[\"RoutingControlState\"]\n            logger.info(\"Updated routing Control State is \" + updated_routing_control_state)\n            done = True\n            break\n            \n        except Exception as e:\n            logger.exception(\"Exception occurred while toggling ARC Routing Control\")\n        if done:\n            metrics.add_metric(name=\"RegionalFailover\", unit=MetricUnit.Count, value=1)\n            break\n    return {'routing_control_state': updated_routing_control_state}\n\ndef dummy(event, context):\n    logger.info(\"dummy\")\n"
+    },
+    "Environment": {
+     "Variables": {
+      "POWERTOOLS_SERVICE_NAME": {
+       "Fn::Sub": "AutomationRegionalFailoverFunction${Env}"
+      },
+      "POWERTOOLS_METRICS_NAMESPACE": {
+       "Fn::Sub": "MultiRegionBatch${Env}"
+      },
+      "LOG_LEVEL": "INFO",
+      "ARC_ROUTING_CONTROL_PRIMARY_ARN": {
+       "Fn::Sub": "{{resolve:secretsmanager:ArcRoutingControlPrimarySecret${Env}}}"
+      },
+      "ARC_ROUTING_CONTROL_STANDBY_ARN": {
+       "Fn::Sub": "{{resolve:secretsmanager:ArcRoutingControlStandbySecret${Env}}}"
+      },
+      "ARC_CLUSTER_ENDPOINTS": {
+       "Fn::Sub": "{{resolve:secretsmanager:ArcClusterEndpoints${Env}}}"
+      }
+     }
+    },
+    "FunctionName": {
+     "Fn::Sub": "AutomationRegionalFailoverFunction${Env}"
+    },
+    "Handler": "index.lambda_handler",
+    "Layers": [
+     {
+      "Fn::Sub": "arn:aws:lambda:${AWS::Region}:${PowerToolsLambdaLayerAccountId}:layer:AWSLambdaPowertoolsPythonV2:20"
+     }
+    ],
+    "Role": {
+     "Fn::GetAtt": "LambdaExecutionRole.Arn"
+    },
+    "Runtime": "python3.9",
+    "TracingConfig": {
+     "Mode": "Active"
+    }
+   }
+  },
+  "DisablePrimaryApplicationRunbook": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Runbook for Application Failover*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "DisableRouteControls",
+       "action": "aws:invokeLambdaFunction",
+       "maxAttempts": 1,
+       "timeoutSeconds": 120,
+       "onFailure": "Abort",
+       "inputs": {
+        "FunctionName": {
+         "Ref": "AutomationRegionalFailoverFunction"
+        },
+        "InputPayload": {
+         "ACTION": "disable",
+         "REGION": "Primary"
+        }
+       },
+       "outputs": [
+        {
+         "Name": "UPDATED_ROUTING_CONTROL_STATE",
+         "Selector": "$.Payload.routing_control_state",
+         "Type": "String"
+        }
+       ]
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-DisableApplication_PrimaryRegion${Env}"
+    }
+   }
+  },
+  "DisableStandbyApplicationRunbook": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Runbook for Application Failover*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "DisableRouteControls",
+       "action": "aws:invokeLambdaFunction",
+       "maxAttempts": 1,
+       "timeoutSeconds": 120,
+       "onFailure": "Abort",
+       "inputs": {
+        "FunctionName": {
+         "Ref": "AutomationRegionalFailoverFunction"
+        },
+        "InputPayload": {
+         "ACTION": "disable",
+         "REGION": "Standby"
+        }
+       },
+       "outputs": [
+        {
+         "Name": "UPDATED_ROUTING_CONTROL_STATE",
+         "Selector": "$.Payload.routing_control_state",
+         "Type": "String"
+        }
+       ]
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-DisableApplication_StandbyRegion${Env}"
+    }
+   }
+  },
+  "EnablePrimaryApplicationRunbook": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Runbook for Application Failover*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "DisableRouteControls",
+       "action": "aws:invokeLambdaFunction",
+       "maxAttempts": 1,
+       "timeoutSeconds": 120,
+       "onFailure": "Abort",
+       "inputs": {
+        "FunctionName": {
+         "Ref": "AutomationRegionalFailoverFunction"
+        },
+        "InputPayload": {
+         "ACTION": "enable",
+         "REGION": "Primary"
+        }
+       },
+       "outputs": [
+        {
+         "Name": "UPDATED_ROUTING_CONTROL_STATE",
+         "Selector": "$.Payload.routing_control_state",
+         "Type": "String"
+        }
+       ]
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "EnableApplication_PrimaryRegion${Env}"
+    }
+   }
+  },
+  "EnableStandbyApplicationRunbook": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Runbook for Application Failover*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "DisableRouteControls",
+       "action": "aws:invokeLambdaFunction",
+       "maxAttempts": 1,
+       "timeoutSeconds": 120,
+       "onFailure": "Abort",
+       "inputs": {
+        "FunctionName": {
+         "Ref": "AutomationRegionalFailoverFunction"
+        },
+        "InputPayload": {
+         "ACTION": "enable",
+         "REGION": "Standby"
+        }
+       },
+       "outputs": [
+        {
+         "Name": "UPDATED_ROUTING_CONTROL_STATE",
+         "Selector": "$.Payload.routing_control_state",
+         "Type": "String"
+        }
+       ]
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "EnableApplication_StandbyRegion${Env}"
+    }
+   }
+  },
+  "FailoverOrdersDbPrimary": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Fail Application & Orders DB out of Primary Region*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control\n2. Failover Orders Global DB",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "failOutApplication",
+       "action": "aws:executeAutomation",
+       "inputs": {
+        "DocumentName": {
+         "Ref": "DisablePrimaryApplicationRunbook"
+        },
+        "DocumentVersion": "1"
+       }
+      },
+      {
+       "name": "failoverAuroraGlobalDB",
+       "action": "aws:executeAwsApi",
+       "inputs": {
+        "Service": "rds",
+        "Api": "FailoverGlobalCluster",
+        "AllowDataLoss": true,
+        "GlobalClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/orders-global-db-cluster${Env}}}"
+        },
+        "TargetDbClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/orders-${StandbyRegion}-global-db-cluster${Env}}}"
+        }
+       },
+       "isEnd": true
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-FailoverOrders_PrimaryRegion${Env}"
+    }
+   }
+  },
+  "FailoverOrdersDbStandby": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Fail Application & Orders DB out of Standby Region*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control\n2. Failover Orders Global DB",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "failOutApplication",
+       "action": "aws:executeAutomation",
+       "inputs": {
+        "DocumentName": {
+         "Ref": "DisableStandbyApplicationRunbook"
+        },
+        "DocumentVersion": "1"
+       }
+      },
+      {
+       "name": "failoverAuroraGlobalDB",
+       "action": "aws:executeAwsApi",
+       "inputs": {
+        "Service": "rds",
+        "Api": "FailoverGlobalCluster",
+        "AllowDataLoss": true,
+        "GlobalClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/orders-global-db-cluster${Env}}}"
+        },
+        "TargetDbClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/orders-${PrimaryRegion}-global-db-cluster${Env}}}"
+        }
+       },
+       "isEnd": true
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-FailoverOrders_StandbyRegion${Env}"
+    }
+   }
+  },
+  "FailoverCatalogDbPrimary": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Fail Application & Catalog DB out of Primary Region*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control\n2. Failover Catalog Global DB",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "failOutApplication",
+       "action": "aws:executeAutomation",
+       "inputs": {
+        "DocumentName": {
+         "Ref": "DisablePrimaryApplicationRunbook"
+        },
+        "DocumentVersion": "1"
+       }
+      },
+      {
+       "name": "failoverAuroraGlobalDB",
+       "action": "aws:executeAwsApi",
+       "inputs": {
+        "Service": "rds",
+        "Api": "FailoverGlobalCluster",
+        "AllowDataLoss": true,
+        "GlobalClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/catalog-global-db-cluster${Env}}}"
+        },
+        "TargetDbClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/catalog-${StandbyRegion}-global-db-cluster${Env}}}"
+        }
+       },
+       "isEnd": true
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-FailoverCatalog_PrimaryRegion${Env}"
+    }
+   }
+  },
+  "FailoverCatalogDbStandby": {
+   "Type": "AWS::SSM::Document",
+   "Properties": {
+    "Content": {
+     "description": "*Fail Application & Catalog DB out of Standby Region*\n---\n# Runbook for Application Failover\n1. Rotate Arc Control\n2. Failover Catalog Global DB",
+     "schemaVersion": "0.3",
+     "assumeRole": {
+      "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AutomationServiceRole${Env}"
+     },
+     "mainSteps": [
+      {
+       "name": "failOutApplication",
+       "action": "aws:executeAutomation",
+       "inputs": {
+        "DocumentName": {
+         "Ref": "DisableStandbyApplicationRunbook"
+        },
+        "DocumentVersion": "1"
+       }
+      },
+      {
+       "name": "failoverAuroraGlobalDB",
+       "action": "aws:executeAwsApi",
+       "inputs": {
+        "Service": "rds",
+        "Api": "FailoverGlobalCluster",
+        "AllowDataLoss": true,
+        "GlobalClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/catalog-global-db-cluster${Env}}}"
+        },
+        "TargetDbClusterIdentifier": {
+         "Fn::Sub": "{{resolve:secretsmanager:mr-app/catalog-${PrimaryRegion}-global-db-cluster${Env}}}"
+        }
+       },
+       "isEnd": true
+      }
+     ]
+    },
+    "DocumentFormat": "YAML",
+    "DocumentType": "Automation",
+    "Name": {
+     "Fn::Sub": "mr-app-FailoverCatalog_StandbyRegion${Env}"
+    }
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yWOzQqDMBCEn6X3mKr00Lul0FtJH0DWJMJqsgv5aQ/iuzfR08yww7fTy66/yfYCv9hoszYOJ7l9EuhVaMfZzBw8JGQakbTLxsphptdpRbFvCOBtskEUwrgh+FpQ7Kxw4CcDNT4z6coQMR7nB+vsLaW9EpSNnIM+aAOTwdrcBXH5tcTrt7vLtgxcImITMiX0VqpT/7CrHdq9AAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CdkNagScanStack/CDKMetadata/Default"
+   },
+   "Condition": "CDKMetadataAvailable"
+  }
+ },
+ "Conditions": {
+  "CDKMetadataAvailable": {
+   "Fn::Or": [
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "af-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-northwest-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "il-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "sa-east-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-2"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

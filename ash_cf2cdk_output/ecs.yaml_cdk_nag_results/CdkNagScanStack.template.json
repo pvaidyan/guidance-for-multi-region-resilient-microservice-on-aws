@@ -1,0 +1,1991 @@
+{
+ "Description": "Applications",
+ "AWSTemplateFormatVersion": "2010-09-09",
+ "Parameters": {
+  "Env": {
+   "Type": "String",
+   "Default": "",
+   "Description": "String to enable multiple deployments per AWS region"
+  },
+  "PrimaryRegion": {
+   "Type": "String",
+   "Default": "us-east-1",
+   "Description": "Enter the Primary Region"
+  },
+  "StandbyRegion": {
+   "Type": "String",
+   "Default": "us-west-2",
+   "Description": "Enter the Standby Region"
+  },
+  "Tag": {
+   "Type": "String",
+   "Description": "Docker image tag"
+  },
+  "KmsKey": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "KmsKey",
+   "Description": "CMK Id"
+  },
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Conditions": {
+  "isPrimary": {
+   "Fn::Equals": [
+    {
+     "Ref": "AWS::Region"
+    },
+    "us-east-1"
+   ]
+  },
+  "isStandby": {
+   "Fn::Equals": [
+    {
+     "Ref": "AWS::Region"
+    },
+    "us-west-2"
+   ]
+  },
+  "CDKMetadataAvailable": {
+   "Fn::Or": [
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "af-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-northwest-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "il-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "sa-east-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-2"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "Resources": {
+  "sgAlb": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "ECS Alb",
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "FromPort": 80,
+      "IpProtocol": "tcp",
+      "ToPort": 80
+     }
+    ],
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "sgTask": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "ECS Task",
+    "SecurityGroupIngress": [
+     {
+      "Description": "Allow ingress traffic",
+      "FromPort": 8080,
+      "IpProtocol": "tcp",
+      "SourceSecurityGroupId": {
+       "Ref": "sgAlb"
+      },
+      "ToPort": 8080
+     }
+    ],
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "sgMq": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "security group for MQ Broker",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all egress",
+      "IpProtocol": "-1"
+     },
+     {
+      "CidrIpv6": "::/0",
+      "Description": "Allow all egress",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "Description": "Allow all ports",
+      "FromPort": 0,
+      "IpProtocol": "tcp",
+      "SourceSecurityGroupId": {
+       "Ref": "sgTask"
+      },
+      "SourceSecurityGroupOwnerId": {
+       "Ref": "AWS::AccountId"
+      },
+      "ToPort": 65535
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "created-by",
+      "Value": "retail-store-sample-app"
+     },
+     {
+      "Key": "environment-name",
+      "Value": "retail-store-ar"
+     },
+     {
+      "Key": "Name",
+      "Value": "retail-store-ar-orders-mq-broker"
+     }
+    ],
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "MqPassword": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {
+     "ExcludePunctuation": true
+    },
+    "KmsKeyId": {
+     "Ref": "KmsKey"
+    },
+    "Name": {
+     "Fn::Sub": "retail-store-ar-mq-password${Env}"
+    }
+   }
+  },
+  "OrdersMqBroker": {
+   "Type": "AWS::AmazonMQ::Broker",
+   "Properties": {
+    "AuthenticationStrategy": "simple",
+    "AutoMinorVersionUpgrade": false,
+    "BrokerName": {
+     "Fn::Sub": "retail-store-arordersmq-broker${Env}"
+    },
+    "DeploymentMode": "SINGLE_INSTANCE",
+    "EncryptionOptions": {
+     "UseAwsOwnedKey": true
+    },
+    "EngineType": "RabbitMQ",
+    "EngineVersion": "3.10.10",
+    "HostInstanceType": "mq.t3.micro",
+    "Logs": {
+     "General": true
+    },
+    "MaintenanceWindowStartTime": {
+     "DayOfWeek": "SUNDAY",
+     "TimeOfDay": "03:00",
+     "TimeZone": "UTC"
+    },
+    "PubliclyAccessible": false,
+    "SecurityGroups": [
+     {
+      "Ref": "sgMq"
+     }
+    ],
+    "StorageType": "ebs",
+    "SubnetIds": [
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "created-by",
+      "Value": "retail-store-sample-app"
+     },
+     {
+      "Key": "environment-name",
+      "Value": "retail-store-ar"
+     },
+     {
+      "Key": "Name",
+      "Value": "retail-store-arordersmq-broker"
+     }
+    ],
+    "Users": [
+     {
+      "Password": {
+       "Fn::Sub": "{{resolve:secretsmanager:${MqPassword}}}"
+      },
+      "Username": "mq"
+     }
+    ]
+   }
+  },
+  "CheckoutEcParameterGroup": {
+   "Type": "AWS::ElastiCache::ParameterGroup",
+   "Properties": {
+    "CacheParameterGroupFamily": "redis4.0",
+    "Description": "Elasticache parameter group for retail-store-ar-checkout"
+   }
+  },
+  "CheckoutEcSubnetGroup": {
+   "Type": "AWS::ElastiCache::SubnetGroup",
+   "Properties": {
+    "Description": "Elasticache subnet group for retail-store-ar-checkout",
+    "SubnetIds": [
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+     },
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+     },
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+     }
+    ]
+   }
+  },
+  "sgRedis": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for Elasticache Redis",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all egress",
+      "IpProtocol": "-1"
+     },
+     {
+      "CidrIpv6": "::/0",
+      "Description": "Allow all egress",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "Description": "Selectively allow inbound traffic",
+      "FromPort": 6379,
+      "IpProtocol": "tcp",
+      "SourceSecurityGroupId": {
+       "Ref": "sgTask"
+      },
+      "SourceSecurityGroupOwnerId": {
+       "Ref": "AWS::AccountId"
+      },
+      "ToPort": 6379
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "created-by",
+      "Value": "retail-store-sample-app"
+     },
+     {
+      "Key": "environment-name",
+      "Value": "retail-store-ar"
+     },
+     {
+      "Key": "Name",
+      "Value": "retail-store-ar-checkout-redis"
+     }
+    ],
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "CheckoutEcCluster": {
+   "Type": "AWS::ElastiCache::CacheCluster",
+   "Properties": {
+    "AutoMinorVersionUpgrade": true,
+    "CacheNodeType": "cache.t3.micro",
+    "CacheParameterGroupName": {
+     "Ref": "CheckoutEcParameterGroup"
+    },
+    "CacheSubnetGroupName": {
+     "Ref": "CheckoutEcSubnetGroup"
+    },
+    "Engine": "redis",
+    "EngineVersion": "4.0.10",
+    "NumCacheNodes": 1,
+    "PreferredMaintenanceWindow": "wed:03:00-wed:04:00",
+    "SnapshotRetentionLimit": 0,
+    "SnapshotWindow": "06:30-07:30",
+    "Tags": [
+     {
+      "Key": "created-by",
+      "Value": "retail-store-sample-app"
+     },
+     {
+      "Key": "environment-name",
+      "Value": "retail-store-ar"
+     },
+     {
+      "Key": "Name",
+      "Value": "retail-store-ar-checkout"
+     }
+    ],
+    "VpcSecurityGroupIds": [
+     {
+      "Ref": "sgRedis"
+     }
+    ]
+   }
+  },
+  "sgTaskIngress": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow Ingress Traffic",
+    "FromPort": 8080,
+    "GroupId": {
+     "Fn::GetAtt": "sgTask.GroupId"
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Ref": "sgTask"
+    },
+    "ToPort": 8080
+   }
+  },
+  "sgOrdersDB": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Control traffic to/from RDS Aurora retail-store-ar-orders",
+    "SecurityGroupIngress": [
+     {
+      "Description": "From allowed SGs",
+      "FromPort": 3306,
+      "IpProtocol": "tcp",
+      "SourceSecurityGroupId": {
+       "Ref": "sgTask"
+      },
+      "SourceSecurityGroupOwnerId": {
+       "Ref": "AWS::AccountId"
+      },
+      "ToPort": 3306
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "created-by",
+      "Value": "retail-store-sample-app"
+     },
+     {
+      "Key": "environment-name",
+      "Value": "retail-store-ar"
+     },
+     {
+      "Key": "Name",
+      "Value": "retail-store-ar-orders-db"
+     }
+    ],
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "CatalogAuroraMySqlComputeSecurityGroupInboundRule": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow traffic on MySql Port",
+    "FromPort": 3306,
+    "GroupId": {
+     "Fn::Sub": "{{resolve:ssm:catalog-aurora-mysql-sg-${AWS::Region}${Env}}}"
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Ref": "sgTask"
+    },
+    "ToPort": 3306
+   }
+  },
+  "OrdersAuroraMySqlComputeSecurityGroupInboundRule": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow traffic on MySql Port",
+    "FromPort": 3306,
+    "GroupId": {
+     "Fn::Sub": "{{resolve:ssm:orders-aurora-mysql-sg-${AWS::Region}${Env}}}"
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Ref": "sgTask"
+    },
+    "ToPort": 3306
+   }
+  },
+  "MqSecret": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "KmsKeyId": {
+     "Ref": "KmsKey"
+    },
+    "Name": {
+     "Fn::Sub": "retail-store-ar-mq${Env}"
+    },
+    "SecretString": {
+     "Fn::Sub": "{\"host\":\"amqps://${OrdersMqBroker}-1.mq.${AWS::Region}.amazonaws.com:5671\",\"password\":\"{{resolve:secretsmanager:retail-store-ar-mq-password${Env}}}\",\"username\":\"default_mq_user\"}"
+    }
+   },
+   "DependsOn": [
+    "MqPassword"
+   ]
+  },
+  "LogGroupKey": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "EnableKeyRotation": true,
+    "Enabled": true,
+    "KeyPolicy": {
+     "Version": "2012-10-17",
+     "Id": "key-loggroup",
+     "Statement": [
+      {
+       "Sid": "Enable IAM User Permissions",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::"
+           },
+           {
+            "Ref": "AWS::AccountId"
+           },
+           ":root"
+          ]
+         ]
+        }
+       },
+       "Action": "kms:*",
+       "Resource": "*"
+      },
+      {
+       "Sid": "Enable Cloudwatch access",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": {
+         "Fn::Sub": "logs.${AWS::Region}.amazonaws.com"
+        }
+       },
+       "Action": [
+        "kms:Encrypt*",
+        "kms:Decrypt*",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:Describe*"
+       ],
+       "Resource": "*"
+      }
+     ]
+    }
+   }
+  },
+  "LogGroup": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "KmsKeyId": {
+     "Fn::GetAtt": "LogGroupKey.Arn"
+    },
+    "RetentionInDays": 3
+   }
+  },
+  "Alb": {
+   "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+   "Properties": {
+    "LoadBalancerAttributes": [
+     {
+      "Key": "routing.http.drop_invalid_header_fields.enabled",
+      "Value": "true"
+     }
+    ],
+    "Scheme": "internal",
+    "SecurityGroups": [
+     {
+      "Ref": "sgAlb"
+     }
+    ],
+    "Subnets": [
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+     },
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+     },
+     {
+      "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+     }
+    ],
+    "Type": "application"
+   }
+  },
+  "AlbTargetGroup": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckEnabled": true,
+    "HealthCheckPath": "/actuator",
+    "Matcher": {
+     "HttpCode": "200,302,303"
+    },
+    "Port": 8080,
+    "Protocol": "HTTP",
+    "TargetGroupAttributes": [
+     {
+      "Key": "load_balancing.algorithm.type",
+      "Value": "weighted_random"
+     },
+     {
+      "Key": "load_balancing.algorithm.anomaly_mitigation",
+      "Value": "on"
+     }
+    ],
+    "TargetType": "ip",
+    "VpcId": {
+     "Fn::Sub": "{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}"
+    }
+   }
+  },
+  "AlbListener": {
+   "Type": "AWS::ElasticLoadBalancingV2::Listener",
+   "Properties": {
+    "DefaultActions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "AlbTargetGroup"
+      },
+      "Type": "forward"
+     }
+    ],
+    "LoadBalancerArn": {
+     "Ref": "Alb"
+    },
+    "Port": 80,
+    "Protocol": "HTTP"
+   }
+  },
+  "EcsCluster": {
+   "Type": "AWS::ECS::Cluster",
+   "Properties": {
+    "ClusterSettings": [
+     {
+      "Name": "containerInsights",
+      "Value": "enabled"
+     }
+    ],
+    "ServiceConnectDefaults": {
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     }
+    }
+   }
+  },
+  "CartsTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ],
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Resource": {
+          "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+         },
+         "Action": [
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
+          "logs:DescribeLogStreams",
+          "logs:PutRetentionPolicy",
+          "logs:PutLogEvents"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}"
+          },
+          {
+           "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/*"
+          },
+          {
+           "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index"
+          },
+          {
+           "Fn::Sub": "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index/*"
+          }
+         ],
+         "Action": [
+          "dynamodb:*"
+         ]
+        }
+       ]
+      },
+      "PolicyName": "ecs"
+     }
+    ]
+   }
+  },
+  "CartsTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Environment": [
+       {
+        "Name": "CARTS_DYNAMODB_TABLENAME",
+        "Value": {
+         "Fn::Sub": "{{resolve:secretsmanager:cartsTable${Env}Secret}}"
+        }
+       },
+       {
+        "Name": "SPRING_PROFILES_ACTIVE",
+        "Value": "dynamodb"
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carts${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "carts",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "carts"
+       }
+      ]
+     }
+    ],
+    "Cpu": "256",
+    "ExecutionRoleArn": {
+     "Ref": "CartsTaskExecutionRole"
+    },
+    "Memory": "512",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "CartsTaskExecutionRole"
+    }
+   }
+  },
+  "CartsService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "carts",
+         "Port": 8080
+        }
+       ],
+       "PortName": "carts"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "carts${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "CartsTaskDefinition"
+    }
+   }
+  },
+  "OrdersTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ],
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Resource": {
+          "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+         },
+         "Action": [
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
+          "logs:DescribeLogStreams",
+          "logs:PutRetentionPolicy",
+          "logs:PutLogEvents"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/*"
+          },
+          {
+           "Ref": "MqSecret"
+          }
+         ],
+         "Action": [
+          "secretsmanager:GetSecretValue"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}"
+          }
+         ],
+         "Action": [
+          "kms:Decrypt*"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*"
+          }
+         ],
+         "Action": [
+          "ssm:GetParameters"
+         ]
+        }
+       ]
+      },
+      "PolicyName": "ecs"
+     }
+    ]
+   }
+  },
+  "OrdersTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Environment": [
+       {
+        "Name": "SPRING_PROFILES_ACTIVE",
+        "Value": "mysql,rabbitmq"
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/orders${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "orders",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "orders"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "SPRING_DATASOURCE_WRITER_URL",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/orders-global-db-cluster-Hostname${Env}"
+        }
+       },
+       {
+        "Name": "SPRING_DATASOURCE_READER_URL",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/orders-global-db-cluster-Hostname${Env}"
+        }
+       },
+       {
+        "Name": "SPRING_DATASOURCE_WRITER_USERNAME",
+        "ValueFrom": {
+         "Fn::Sub": "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:username::"
+        }
+       },
+       {
+        "Name": "SPRING_DATASOURCE_READER_USERNAME",
+        "ValueFrom": {
+         "Fn::Sub": "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:username::"
+        }
+       },
+       {
+        "Name": "SPRING_RABBITMQ_USER",
+        "ValueFrom": {
+         "Fn::Sub": "${MqSecret}:username::"
+        }
+       },
+       {
+        "Name": "SPRING_RABBITMQ_ADDRESSES",
+        "ValueFrom": {
+         "Fn::Sub": "${MqSecret}:host::"
+        }
+       },
+       {
+        "Name": "SPRING_DATASOURCE_WRITER_PASSWORD",
+        "ValueFrom": {
+         "Fn::Sub": "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:password::"
+        }
+       },
+       {
+        "Name": "SPRING_DATASOURCE_READER_PASSWORD",
+        "ValueFrom": {
+         "Fn::Sub": "{{resolve:ssm:orders-global-db-cluster-CredentialSecretArn${Env}}}:password::"
+        }
+       },
+       {
+        "Name": "SPRING_RABBITMQ_PASSWORD",
+        "ValueFrom": {
+         "Fn::Sub": "${MqSecret}:password::"
+        }
+       }
+      ]
+     }
+    ],
+    "Cpu": "1024",
+    "ExecutionRoleArn": {
+     "Ref": "OrdersTaskExecutionRole"
+    },
+    "Memory": "2048",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "OrdersTaskExecutionRole"
+    }
+   }
+  },
+  "OrdersService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "orders",
+         "Port": 8080
+        }
+       ],
+       "PortName": "orders"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "orders${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "OrdersTaskDefinition"
+    }
+   }
+  },
+  "AssetsTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ]
+   }
+  },
+  "AssetsTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/assets${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "assets",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "assets"
+       }
+      ]
+     }
+    ],
+    "Cpu": "256",
+    "ExecutionRoleArn": {
+     "Ref": "AssetsTaskExecutionRole"
+    },
+    "Memory": "512",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "AssetsTaskExecutionRole"
+    }
+   }
+  },
+  "AssetsService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "assets",
+         "Port": 8080
+        }
+       ],
+       "PortName": "assets"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "assets${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "AssetsTaskDefinition"
+    }
+   }
+  },
+  "CatalogTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ],
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Resource": {
+          "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+         },
+         "Action": [
+          "logs:CreateLogStream",
+          "logs:CreateLogGroup",
+          "logs:DescribeLogStreams",
+          "logs:PutRetentionPolicy",
+          "logs:PutLogEvents"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/*"
+          }
+         ],
+         "Action": [
+          "secretsmanager:GetSecretValue"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKey}"
+          }
+         ],
+         "Action": [
+          "kms:Decrypt*"
+         ]
+        },
+        {
+         "Effect": "Allow",
+         "Resource": [
+          {
+           "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*"
+          }
+         ],
+         "Action": [
+          "ssm:GetParameters"
+         ]
+        }
+       ]
+      },
+      "PolicyName": "ecs"
+     }
+    ]
+   }
+  },
+  "CatalogTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Environment": [
+       {
+        "Name": "DB_NAME",
+        "Value": "catalog"
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/catalog${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "catalog",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "catalog"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "DB_ENDPOINT",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/catalog-global-db-cluster-Hostname${Env}"
+        }
+       },
+       {
+        "Name": "DB_READ_ENDPOINT",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/catalog-global-db-cluster-Hostname${Env}"
+        }
+       },
+       {
+        "Name": "DB_USER",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/catalog-global-db-cluster-UserCredentials${Env}:username::"
+        }
+       },
+       {
+        "Name": "DB_PASSWORD",
+        "ValueFrom": {
+         "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:mr-app/catalog-global-db-cluster-UserCredentials${Env}:password::"
+        }
+       }
+      ]
+     }
+    ],
+    "Cpu": "1024",
+    "ExecutionRoleArn": {
+     "Ref": "CatalogTaskExecutionRole"
+    },
+    "Memory": "2048",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "CatalogTaskExecutionRole"
+    }
+   }
+  },
+  "CatalogService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "LogConfiguration": {
+      "LogDriver": "awslogs",
+      "Options": {
+       "awslogs-group": {
+        "Ref": "LogGroup"
+       },
+       "awslogs-region": {
+        "Fn::Sub": "${AWS::Region}"
+       },
+       "awslogs-stream-prefix": "ecs"
+      }
+     },
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "catalog",
+         "Port": 8080
+        }
+       ],
+       "PortName": "catalog"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "catalog${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "CatalogTaskDefinition"
+    }
+   }
+  },
+  "CheckoutTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ]
+   }
+  },
+  "CheckoutTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Environment": [
+       {
+        "Name": "ENDPOINTS_ORDERS",
+        "Value": "http://orders:8080"
+       },
+       {
+        "Name": "REDIS_URL",
+        "Value": {
+         "Fn::Sub": "redis://${CheckoutEcCluster.RedisEndpoint.Address}:${CheckoutEcCluster.RedisEndpoint.Port}"
+        }
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/checkout${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "checkout",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "checkout"
+       }
+      ]
+     }
+    ],
+    "Cpu": "1024",
+    "ExecutionRoleArn": {
+     "Ref": "CheckoutTaskExecutionRole"
+    },
+    "Memory": "2048",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "CheckoutTaskExecutionRole"
+    }
+   }
+  },
+  "CheckoutService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "checkout",
+         "Port": 8080
+        }
+       ],
+       "PortName": "checkout"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "checkout${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "CheckoutTaskDefinition"
+    }
+   },
+   "DependsOn": [
+    "OrdersService"
+   ]
+  },
+  "UiTaskExecutionRole": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Effect": "Allow",
+       "Principal": {
+        "Service": [
+         "ecs-tasks.amazonaws.com"
+        ]
+       },
+       "Action": "sts:AssumeRole"
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ]
+   }
+  },
+  "UiTaskDefinition": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Cpu": 0,
+      "Environment": [
+       {
+        "Name": "ENDPOINTS_CATALOG",
+        "Value": {
+         "Fn::Sub": "http://catalog:8080"
+        }
+       },
+       {
+        "Name": "ENDPOINTS_CARTS",
+        "Value": {
+         "Fn::Sub": "http://carts:8080"
+        }
+       },
+       {
+        "Name": "ENDPOINTS_CHECKOUT",
+        "Value": {
+         "Fn::Sub": "http://checkout:8080"
+        }
+       },
+       {
+        "Name": "ENDPOINTS_ORDERS",
+        "Value": {
+         "Fn::Sub": "http://orders:8080"
+        }
+       },
+       {
+        "Name": "ENDPOINTS_ASSETS",
+        "Value": {
+         "Fn::Sub": "http://assets:8080"
+        }
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ui${Env}:${Tag}"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "LogGroup"
+        },
+        "awslogs-region": {
+         "Fn::Sub": "${AWS::Region}"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "MemoryReservation": 50,
+      "Name": "ui",
+      "PortMappings": [
+       {
+        "AppProtocol": "http",
+        "ContainerPort": 8080,
+        "Name": "ui"
+       }
+      ]
+     }
+    ],
+    "Cpu": "1024",
+    "ExecutionRoleArn": {
+     "Ref": "UiTaskExecutionRole"
+    },
+    "Memory": "2048",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Ref": "UiTaskExecutionRole"
+    }
+   },
+   "DependsOn": [
+    "CatalogService"
+   ]
+  },
+  "UiService": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE_SPOT",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Ref": "EcsCluster"
+    },
+    "DesiredCount": 3,
+    "LoadBalancers": [
+     {
+      "ContainerName": "ui",
+      "ContainerPort": 8080,
+      "TargetGroupArn": {
+       "Ref": "AlbTargetGroup"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": "sgTask.GroupId"
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet1${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet2${Env}}}"
+       },
+       {
+        "Fn::Sub": "{{resolve:ssm:Subnet3${Env}}}"
+       }
+      ]
+     }
+    },
+    "ServiceConnectConfiguration": {
+     "Enabled": true,
+     "LogConfiguration": {
+      "LogDriver": "awslogs",
+      "Options": {
+       "awslogs-group": {
+        "Ref": "LogGroup"
+       },
+       "awslogs-region": {
+        "Fn::Sub": "${AWS::Region}"
+       },
+       "awslogs-stream-prefix": "ecs"
+      }
+     },
+     "Namespace": {
+      "Fn::Sub": "retail-store-ar${Env}"
+     },
+     "Services": [
+      {
+       "ClientAliases": [
+        {
+         "DnsName": "ui",
+         "Port": 8080
+        }
+       ],
+       "PortName": "ui"
+      }
+     ]
+    },
+    "ServiceName": {
+     "Fn::Sub": "ui${Env}"
+    },
+    "TaskDefinition": {
+     "Ref": "UiTaskDefinition"
+    }
+   },
+   "DependsOn": [
+    "AssetsService",
+    "CartsService",
+    "CatalogService",
+    "CheckoutService",
+    "OrdersService"
+   ]
+  },
+  "AlbSecret": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Alb Info",
+    "KmsKeyId": {
+     "Ref": "KmsKey"
+    },
+    "Name": {
+     "Fn::Sub": "Alb-${AWS::Region}${Env}"
+    },
+    "ReplicaRegions": [
+     {
+      "Region": {
+       "Fn::If": [
+        "isPrimary",
+        "us-west-2",
+        "us-east-1"
+       ]
+      }
+     }
+    ],
+    "SecretString": {
+     "Fn::Sub": "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
+    }
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11RwU4CMRD9Fu+lAvHgmTUxRA4GvJOhO6zDtlOdtmtww7/bbgkaT33z+vrezHSpF8sHPb+DrzAzbT+zdNDjLoLplbE+tUcvDiJ53hMbm1rUzZHXFaoMX0HAYUQpReO5pSJW2W4/olnqMdM7NEkonp/Fpw/1n1hzJxjCRQU0gjE4YOhQdNVlRoGDb8/us1Ar8X0OQwshkgHzjlPErY3fjHRgjLeyKdLGppA1F9W7UMxe8Kys7ya88V0VX62th/YAFtgQd0MdZJO51cTVed9Auj8ZG8ruXPzRhOnBNbBqQ/+ER+K6oGk6GcjgRRG40sHW21wUgMEnKTfs88JP4X5YPOp5/qVTIJpJ4kgO9baeP+q76bTCAQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CdkNagScanStack/CDKMetadata/Default"
+   },
+   "Condition": "CDKMetadataAvailable"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
