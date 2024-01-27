@@ -23,5 +23,5 @@ WORKDIR /
 COPY --from=builder --chown=nonroot:nonroot  /workspace/manager .
 COPY --from=builder --chown=nonroot:nonroot  /workspace/db/migrations ./db/migrations
 ENV GIN_MODE=release
-
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
 ENTRYPOINT ["/manager"]

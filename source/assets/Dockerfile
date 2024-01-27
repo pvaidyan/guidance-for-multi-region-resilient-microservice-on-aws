@@ -18,7 +18,7 @@ RUN touch /var/run/nginx.pid && \
         chown -R nginx:nginx /var/run/nginx.pid
 
 USER nginx
-
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
 STOPSIGNAL SIGQUIT
 
 CMD ["nginx", "-g", "daemon off;"]

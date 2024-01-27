@@ -4,3 +4,5 @@
 **/package/python/
 **/bucket-name.txt
 **/out.yaml
+/deployment/database/crdr-reconciliation/src/function/package/python/
+/venv/

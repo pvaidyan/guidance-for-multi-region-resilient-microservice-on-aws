@@ -47,6 +47,7 @@
                             <div class="col-lg col-sm-4">
                                 <div class="float-lg-end">
                                     <form action="/cart/remove" method="POST">
+                                        <input type="hidden" name="csrf_token" value="${_csrf.token}"/>
                                         <input type="hidden" name="productId" th:value="${item.id}"/>
                                         <button type="submit" class="btn btn-remove remove-item text-danger">Remove</button>
                                     </form>
