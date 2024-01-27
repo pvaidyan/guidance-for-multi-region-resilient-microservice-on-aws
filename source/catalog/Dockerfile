@@ -9,7 +9,7 @@ COPY . .
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source ch`anges don't invalidate our downloaded layer
 RUN go mod download
-
+RUN go mod tidy
 # Copy the go source
 
 # Build
