@@ -1,2 +1,0 @@
-Rule ID,Resource ID,Compliance,Exception Reason,Rule Level,Rule Info
-"AwsSolutions-SMG4","CdkNagScanStack/--run--scan--src--deployment--database--dynamodb--global-table.yml/DDBGlobalTableSecret","Non-Compliant","N/A","Error","The secret does not have automatic rotation scheduled."

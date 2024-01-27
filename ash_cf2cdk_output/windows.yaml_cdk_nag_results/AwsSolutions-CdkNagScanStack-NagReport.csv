@@ -1,9 +1,0 @@
-Rule ID,Resource ID,Compliance,Exception Reason,Rule Level,Rule Info
-"AwsSolutions-SMG4","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/WindowsPassword","Non-Compliant","N/A","Error","The secret does not have automatic rotation scheduled."
-"AwsSolutions-IAM4","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/IamInstanceRole","Non-Compliant","N/A","Error","The IAM user, role, or group uses AWS managed policies."
-"AwsSolutions-IAM5","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/IamInstanceRole","Compliant","N/A","Error","The IAM entity contains wildcard permissions and does not have a cdk-nag rule suppression with evidence for those permission."
-"AwsSolutions-EC23","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/SecurityGroup","Compliant","N/A","Error","The Security Group allows for 0.0.0.0/0 or ::/0 inbound access."
-"AwsSolutions-EC27","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/SecurityGroup","Compliant","N/A","Error","The Security Group does not have a description."
-"AwsSolutions-EC26","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/WindowsInstance","Non-Compliant","N/A","Error","The resource creates one or more EBS volumes that have encryption disabled."
-"AwsSolutions-EC28","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/WindowsInstance","Non-Compliant","N/A","Error","The EC2 instance/AutoScaling launch configuration does not have detailed monitoring enabled."
-"AwsSolutions-EC29","CdkNagScanStack/--run--scan--src--deployment--windows.yaml/WindowsInstance","Non-Compliant","N/A","Error","The EC2 instance is not part of an ASG and has Termination Protection disabled."
