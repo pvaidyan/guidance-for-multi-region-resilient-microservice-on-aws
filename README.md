@@ -4,8 +4,13 @@
 
 This guidance helps customers design and operate a multi-Region microservice based architecture for an e-commerce platform on AWS using services like Amazon Elastic Container Services, Amazon Aurora Global Tables, Route53 Application Recovery Controller (ARC) and Lambda functions. The solution is deployed across two Regions that can failover and failback from one Region to another in an automated fashion. It leverages Amazon Route 53 Application Recovery Controller to help with the regional failover using AWS Systems Manager document (SSM). AWS Systems Manager (SSM) runbook  toggles the Route53 Application Recovery Controller (ARC) routing control “off” which causes the managed Health Check for the region to enter a “Failed” state. SSM runbook executes Aurora Global Database managed failover which promotes the standby region to the primary for writes. SSM runbook recovers a copy of the old primary database from a snapshot and reconcile the data in the new primary database to the old and generates a missing transaction report. 
 
+## Application Overview
+
+The sample application used for this prespective guidence is an e-commerce platform. The front-end of the applications runs as a service in an Amazon Elastic Container(ECS) supported by back-end micro-services 
+e.g. catalog, assets, orders, cats, checkout to support flows like displaying lists of available products, adding products to carts and finally placing and order. The application is supported by two Amazon Aurora Global database clusters running inastances of Catalog and Orders. 
+
+
 ## Architecture
-WIP
 
 ### 1. Operating in the active/active state
 
@@ -51,6 +56,7 @@ WIP
     * Amazon Elastic Compute Cloud (EC2)
     * Amazon Elastic Container Services (ECS)
     * Amazon Relational Database Service (RDS)
+    * Amazon ElastiCache for Redis
     * Amazon Aurora Global Database 
     * AWS Identity and Access Management (IAM)
     * AWS Secrets Manager
@@ -98,7 +104,8 @@ We use make file to automate the deployment commands. The make file is optimized
 
 ## Verify the deployment
 
-*** Deployment Outputs ****
+**Deployment Outputs**
+
 Verify deployment outputs after a successful deployment. If you are deploying the solution to **us-east-1** a sample deployment output will look like this:- 
 
 Canaries:
@@ -126,10 +133,10 @@ WIP
 Note: If you have created reconciliation Amazon Aurora Database Clusters and Database Instances in the Standby Region, please delete all those instances before going to the next step.
 
 Delete all the cloudformation stacks and associated resources from both the Regions, by running the following command from the `deployment` folder
-    ```shell 
+    ```shell
     make destroy-all
     ```
-
+    
 
 ## Security
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
