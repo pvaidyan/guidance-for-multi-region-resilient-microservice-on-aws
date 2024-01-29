@@ -8,10 +8,37 @@ This guidance helps customers design and operate a multi-Region microservice bas
 WIP
 
 ### 1. Operating in the active/active state
-WIP
+
+![Application Running in active/active state](assets/static//01.architecture-diagram-mr-ms.png)
+
+1. Route53 Failover records use Route53 Application Recovery Controller (ARC) managed Health Checks to route requests to the active regions.
+
+2. Application Load Balancers (ALB) send requests to the front-end ECS tasks.  Depending on the page being accessed, the front-end will make a service call to the appropriate service via ECS Service Connect.
+
+3. As records are written to the writer instances of the  “Catalog” and “Orders” Amazon Aurora global databases, they are replicated to the standby clusters.
+
+4. As records are written to the “Carts” Amazon DynamoDB global table in one region, they are replicated to the table in the other region.
+
+5. Amazon CloudWatch Synthetics from each region sends requests to the application in each region via the ALB’s address and to the DNS name resolved through Route53.
+
+6. AWS Systems Manager Automation Runbooks automate the enabling and disabling of the ARC routing controls and the failing-over of the Aurora Global Databases.
+
+
 
 ### 2. Cross Region Failover 
-WIP
+
+![Application Running in failover state](assets/static//01.architecture-diagram-mr-ms.png)
+
+1. AWS Systems Manager (SSM) runbook  toggles the Route53 Application Recovery Controller (ARC) routing control “off” which causes the managed Health Check for the region to enter a “Failed” state.
+
+2. Amazon Route53 returns only the remaining healthy region as clients resolve the application’s fully-qualified domain name.
+
+3. SSM runbook executes Aurora Global Database managed failover which promotes the standby region to the primary for writes. 
+
+4. Former primary is rebuilt as a secondary by the Aurora service.
+
+5. SSM runbook recovers a copy of the old primary database from a snapshot and compares the data in the new primary database to the old and creates a missing transaction report.
+
 
 
 ## Pre-requisites
