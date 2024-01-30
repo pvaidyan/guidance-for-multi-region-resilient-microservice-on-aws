@@ -304,6 +304,11 @@ Resources:
     Properties: 
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: Canary - Egress Only
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
 
 #SSM Params
   Subnet1Param:

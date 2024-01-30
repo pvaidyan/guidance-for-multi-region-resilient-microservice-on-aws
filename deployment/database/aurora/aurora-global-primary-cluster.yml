@@ -67,6 +67,11 @@ Resources:
     Properties:
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
       GroupDescription: Access to aurora mysql database
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
       Tags:
         - Key: Name
           Value: aurora-mysql-security-group
@@ -268,7 +273,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-DBClusterIdentifier${Env}'
       Description: !Sub 'DBClusterIdentifier for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !Sub '${NamingPrefix}-${ClusterName}-${AWS::Region}${Env}'
       ReplicaRegions:
         - Region: us-west-2

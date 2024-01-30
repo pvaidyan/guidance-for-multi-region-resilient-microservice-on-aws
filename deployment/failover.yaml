@@ -48,8 +48,8 @@ Resources:
                 Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
               - Effect: Allow
                 Action:
-                  - "route53-recovery-cluster:*"
-                  - "route53-recovery-control-config:*"
+                  - "route53-recovery-cluster:GetRoutingControlState"
+                  - "route53-recovery-cluster:UpdateRoutingControlState"
                 Resource:
                   - !Sub 'arn:aws:route53-recovery-control::${AWS::AccountId}:cluster/*'
                   - !Sub 'arn:aws:route53-recovery-control::${AWS::AccountId}:controlpanel/*'

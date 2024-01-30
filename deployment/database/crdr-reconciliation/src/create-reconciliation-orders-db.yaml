@@ -23,7 +23,11 @@ Parameters:
   GlobalClusterIdentifier:
     Default: global-db-cluster
     Type: String
-    
+  KmsKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: KmsKey
+    Description: CMK Id 
+
 Resources: 
   SubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -87,7 +91,7 @@ Resources:
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${DBClusterIdentifier}-${AWS::Region}${Env}'
       Description: !Sub 'Reconciliation DBCluster Arn for ${NamingPrefix}'
-      KmsKeyId: "alias/aws/secretsmanager"
+      KmsKeyId: !Ref KmsKey
       SecretString: !GetAtt DBCluster.DBClusterArn
       ReplicaRegions:
         - Region: us-east-1

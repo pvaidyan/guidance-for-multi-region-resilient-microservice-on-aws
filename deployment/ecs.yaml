@@ -123,6 +123,11 @@ Resources:
           FromPort: 8080
           ToPort:  8080
           Description: 'Allow ingress traffic'
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
   sgTaskIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties: 
@@ -139,11 +144,15 @@ Resources:
       GroupDescription: ECS Alb
       SecurityGroupIngress:
         #Public ALB
-        -
-          CidrIp: 0.0.0.0/0
-          IpProtocol: tcp
-          FromPort: 80
-          ToPort:  80
+        CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        FromPort: 80
+        ToPort:  80
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
   sgOrdersDB:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -167,6 +176,11 @@ Resources:
           FromPort: 3306
           IpProtocol: "tcp"
           ToPort: 3306
+      SecurityGroupEgress: 
+        - 
+          CidrIp: "0.0.0.0/0"
+          Description: "Allow all egress"
+          IpProtocol: "-1"
   sgMq:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -249,30 +263,6 @@ Resources:
           CidrIpv6: "::/0"
           Description: "Allow all egress"
           IpProtocol: "-1"
-
-  # KmsKey:
-  #   Type: "AWS::KMS::Key"
-  #   Properties:
-  #     Enabled: true
-  #     EnableKeyRotation: true
-  #     Description: "retail-store-ar CMK"
-  #     KeyUsage: "ENCRYPT_DECRYPT"
-  #     KeyPolicy: !Sub |
-  #         {
-  #           "Version" : "2012-10-17",
-  #           "Id" : "key-default-1",
-  #           "Statement" : [ {
-  #             "Sid" : "Enable IAM User Permissions",
-  #             "Effect" : "Allow",
-  #             "Principal" : {
-  #               "AWS" : "arn:aws:iam::${AWS::AccountId}:root"
-  #             },
-  #             "Action" : "kms:*",
-  #             "Resource" : "*"
-  #           } ]
-  #         }
-  #     KeySpec: "SYMMETRIC_DEFAULT"
-  #     MultiRegion: false
   
   #Secrets
 
@@ -416,7 +406,13 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/{{resolve:secretsmanager:cartsTable${Env}Secret}}/index/*'
                 Action:
-                  - "dynamodb:*"
+                  - "dynamodb:GetItem"
+                  - "dynamodb:BatchGetItem"
+                  - "dynamodb:Query"
+                  - "dynamodb:PutItem"
+                  - "dynamodb:UpdateItem"
+                  - "dynamodb:DeleteItem"
+                  - "dynamodb:BatchWriteItem"
   CartsTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:

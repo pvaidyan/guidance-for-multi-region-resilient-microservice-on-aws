@@ -19,7 +19,7 @@ Parameters:
   KmsKey:
     Type: AWS::SSM::Parameter::Value<String>
     Default: KmsKey
-    Description: CMK Id
+    Description: CMK Id 
 
 Resources:
   IamInstanceRole:
@@ -50,6 +50,8 @@ Resources:
     Type: "AWS::SecretsManager::Secret"
     Properties:
       Name: !Sub 'mr-app-windowspassword-${AWS::Region}${Env}'
+      Description: "Password for the Windows Administrator"
+      KmsKeyId: !Ref KmsKey
       GenerateSecretString: 
         PasswordLength: 15
         ExcludePunctuation: true
