@@ -69,9 +69,11 @@ e.g. catalog, assets, orders, cats, checkout to support flows like displaying li
 profile.  Please follow the [AWS CLI setup instructions](https://github.com/aws/aws-cli).  Make sure you have a 
 default profile set up; you may need to run `aws configure` if you have never set up the CLI before. 
 
-* Install Python version 3.9 on your machine. Please follow the [Download and Install Python](https://www.python.org/downloads/) instructions.
+* Install Python version 3.12 on your machine. Please follow the [Download and Install Python](https://www.python.org/downloads/) instructions.
 
 * Install `make` for your OS if it is not already there.
+
+* Install Docker Desktop on your machine. Please follow the [Download and Install Docker Desktop](https://www.docker.com/products/docker-desktop/) instructions.
 
 ### Regions
 
@@ -109,20 +111,20 @@ We use make file to automate the deployment commands. The make file is optimized
 Verify deployment outputs after a successful deployment. If you are deploying the solution to **us-east-1** a sample deployment output will look like this:- 
 
 Canaries:
-https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#synthetics:canary/list
-https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-west-2#synthetics:canary/list
-
+* https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#synthetics:canary/list
+* https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-west-2#synthetics:canary/list
+* 
 Clients for in-VPC Browser:
-https://us-east-1.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=us-east-1
-https://us-west-2.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=us-west-2
-
+* https://us-east-1.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=us-east-1
+* https://us-west-2.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=us-west-2
+* 
 Administrator user passwords:
-https://us-east-1.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword&region=us-east-1
-https://us-west-2.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword&region=us-west-2
-
+* https://us-east-1.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword&region=us-east-1
+* https://us-west-2.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword&region=us-west-2
+* 
 SSM Runbooks for failover execution:
-https://us-east-1.console.aws.amazon.com/systems-manager/documents
-https://us-west-2.console.aws.amazon.com/systems-manager/documents
+* https://us-east-1.console.aws.amazon.com/systems-manager/documents
+* https://us-west-2.console.aws.amazon.com/systems-manager/documents
 
 
 ## Observability
