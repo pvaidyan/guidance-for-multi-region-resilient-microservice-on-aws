@@ -32,7 +32,7 @@ e.g. catalog, assets, orders, cats, checkout to support flows like displaying li
 
 ### 2. Cross Region Failover 
 
-![Application Running in failover state](assets/static//01.architecture-diagram-mr-ms.png)
+![Application Running in failover state](assets/static//02.architecture-diagram-dr-mr-ms.png)
 
 1. AWS Systems Manager (SSM) runbook  toggles the Route53 Application Recovery Controller (ARC) routing control “off” which causes the managed Health Check for the region to enter a “Failed” state.
 
