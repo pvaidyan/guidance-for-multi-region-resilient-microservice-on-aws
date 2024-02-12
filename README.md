@@ -127,7 +127,10 @@ SSM Runbooks for failover execution:
 * https://us-west-2.console.aws.amazon.com/systems-manager/documents
 
 ## Observability
-WIP
+
+Each Region is provisioned with a CloudWatch dashboard that shows the healthchecks as reporrted by the Synthetic Canaries. 
+
+![Cloudwatch Synthetics Dashboard](assets/static/03.synthetics-dashboard.png)
 
 ## Cleanup
 
