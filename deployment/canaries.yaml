@@ -1115,7 +1115,7 @@ Resources:
   SyntheticsDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub Synthetics-HealthCheck-Dashboard${Env}
+      DashboardName: !Sub Synthetics-HealthCheck-Dashboard-${AWS::Region}${Env}
       DashboardBody: '{
     "widgets": [
         {

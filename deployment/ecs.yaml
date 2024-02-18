@@ -1017,3 +1017,14 @@ Resources:
       SecretString: !Sub "{\"DnsName\":\"${Alb.DNSName}\",\"HostedZoneId\":\"${Alb.CanonicalHostedZoneID}\"}"
       ReplicaRegions:
         - Region: !If [isPrimary, us-west-2, us-east-1]
+
+  OrdersCreatedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub 'Orders-Created-${AWS::Region}'
+      FilterPattern: 'c.a.s.o.s.OrderService                    Created Order'
+      LogGroupName: !Ref LogGroup
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "ecommerce"
+          MetricName: !Sub 'OrdersCreated${Env}'

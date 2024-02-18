@@ -19,7 +19,7 @@ COMPOSE_DOCKER_CLI_BUILD=0
 ####
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
-	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation
+	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 deploy: deploy-all
@@ -34,8 +34,8 @@ deploy: deploy-all
 	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=${STANDBY_REGION}"
 	@echo ""
 	@echo "Administrator user passwords:"
-	@echo "https://${PRIMARY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword${ENV}&region=${PRIMARY_REGION}"
-	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword${ENV}&region=${STANDBY_REGION}"
+	@echo "https://${PRIMARY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword-${PRIMARY_REGION}${ENV}&region=${PRIMARY_REGION}"
+	@echo "https://${STANDBY_REGION}.console.aws.amazon.com/secretsmanager/secret?name=mr-app-windowspassword-${STANDBY_REGION}${ENV}&region=${STANDBY_REGION}"
 	@echo ""
 	@echo "SSM Runbooks for failover execution:"
 	@echo "https://${PRIMARY_REGION}.console.aws.amazon.com/systems-manager/documents"
@@ -209,12 +209,14 @@ carts-db: primary_infrastructure
 	--parameter-overrides Env=${ENV} NamingPrefix=carts KmsKey=retail-store-ar${ENV}
 
 client-primary: primary_infrastructure
+	@echo "Deploy the Windows Client in the Primary Region"
 	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text))
 	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(PRIMARY_REGION)$(ENV) --region $(PRIMARY_REGION) --query "SecretString" --output text))
 	@echo "Creating Windows client for testing purposes in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./windows.yaml --parameter-overrides Env=${ENV} SubnetId=${subnet} VpcId=${vpc} KmsKey=retail-store-ar${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_IAM --stack-name client${ENV}
 
 client-standby: standby_infrastructure
+	@echo "Deploy the Windows Client in the Standby Region"
 	$(eval subnet:=$(shell aws ssm get-parameter --name Subnet1$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text))
 	$(eval vpc:=$(shell aws secretsmanager get-secret-value --secret-id VpcId-$(STANDBY_REGION)$(ENV) --region $(STANDBY_REGION) --query "SecretString" --output text))
 	@echo "Creating Windows client for testing purposes in ${STANDBY_REGION}"
@@ -233,6 +235,11 @@ restore-reconciliation: primary_infrastructure primary_region_orders-db standby_
 	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
 	@aws cloudformation package --template-file ./database/crdr-reconciliation/src/restore-reconcile-orders-ssm.yaml --region ${STANDBY_REGION} --s3-bucket $(result) --output-template-file ./database/crdr-reconciliation/src/out.yaml
 	@aws cloudformation deploy --template-file ./database/crdr-reconciliation/src/out.yaml --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV}
+
+monitoring: restore-reconciliation
+	@echo "Deploy the Monitoring Dashboard"
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./monitoring.yml \
+	--stack-name monitoring${ENV} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides PrimaryRegion=${PRIMARY_REGION} Env=${ENV} SecondaryRegion=${STANDBY_REGION}
 
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"

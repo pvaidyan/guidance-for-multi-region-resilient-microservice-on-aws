@@ -128,9 +128,14 @@ SSM Runbooks for failover execution:
 
 ## Observability
 
-Each Region is provisioned with a CloudWatch dashboard that shows the healthchecks as reporrted by the Synthetic Canaries. 
+Each Region is provisioned with a CloudWatch dashboard that shows the healthchecks as reported by the Synthetic Canaries in each Region. 
 
 ![Cloudwatch Synthetics Dashboard](assets/static/03.synthetics-dashboard.png)
+
+In addition, a System Dashboard is also provisioned that shows key metrics like the Order created in each Region, and the replication latency metrics for 
+DynamoDB and Aurora Global database.
+
+![System Dashboard](assets/static/04.system-dashboard.png)
 
 ## Cleanup
 
