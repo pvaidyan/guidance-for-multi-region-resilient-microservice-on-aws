@@ -6,3 +6,5 @@
 **/out.yaml
 /deployment/database/crdr-reconciliation/src/function/package/python/
 /venv/
+/ash_output/**
+/ash_output

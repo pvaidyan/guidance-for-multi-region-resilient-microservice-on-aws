@@ -353,3 +353,58 @@ Resources:
       Type: String
       Name: !Sub canarySgId${Env}
       Value: !Ref canarySg
+
+  VPCEndpointForSecretsManager:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      VpcEndpointType: Interface
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecretsManagerSecurityGroup
+  VPCEndpointSecretsManagerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      GroupDescription: VPC Endpoint SG
+      Tags:
+        - Key: Name
+          Value: 'VPC Endpoint for Secrets Manager SG'
+  VPCEndpointSMSgParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub VPCEndpointSecretsManagerSGId${Env}
+      Value: !Ref VPCEndpointSecretsManagerSecurityGroup
+  VPCEndpointForRDS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.rds'
+      VpcEndpointType: Interface
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointRDSSecurityGroup
+  VPCEndpointRDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      GroupDescription: VPC Endpoint SG
+      Tags:
+        - Key: Name
+          Value: 'VPC Endpoint for RDS SG'
+  VPCEndpointRDSSgParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub VPCEndpointRDSSGId${Env}
+      Value: !Ref VPCEndpointRDSSecurityGroup

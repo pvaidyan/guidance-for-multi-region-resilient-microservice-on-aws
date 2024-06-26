@@ -137,6 +137,14 @@ Resources:
       ToPort:  8080
       GroupId: !GetAtt sgTask.GroupId
       Description: 'Allow Ingress Traffic'
+  VPCEndpointSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Sub '{{resolve:ssm:VPCEndpointSecretsManagerSGId${Env}}}'
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref sgTask
   sgAlb:
     Type: AWS::EC2::SecurityGroup
     Properties: 

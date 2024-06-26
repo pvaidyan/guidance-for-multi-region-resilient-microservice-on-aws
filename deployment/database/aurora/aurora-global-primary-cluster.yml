@@ -277,6 +277,156 @@ Resources:
       SecretString: !Sub '${NamingPrefix}-${ClusterName}-${AWS::Region}${Env}'
       ReplicaRegions:
         - Region: us-west-2
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      GroupDescription: Lambda function access to aurora mysql databases
+      Tags:
+        - Key: Name
+          Value: !Sub 'secrets-update-aurora-mysql-security-group${Env}'
+      SecurityGroupEgress:
+        - DestinationSecurityGroupId: !Sub '{{resolve:ssm:VPCEndpointSecretsManagerSGId${Env}}}'
+          Description: "Allow VPC Endpoint Access for Secrets Manager"
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - DestinationSecurityGroupId: !Sub '{{resolve:ssm:VPCEndpointRDSSGId${Env}}}'
+          Description: "Allow VPC Endpoint Access for RDS"
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+  UpdateSecretFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          def handler(event, context):
+              secretsmanager_client = boto3.client('secretsmanager')
+              rds_client = boto3.client('rds')
+
+              secret_name = event['SecretName']
+              db_cluster_identifier = event['DBClusterIdentifier']
+
+              # Describe the DB cluster to get the endpoint and other details
+              db_cluster_info = rds_client.describe_db_clusters(DBClusterIdentifier=db_cluster_identifier)['DBClusters'][0]
+              host = db_cluster_info['Endpoint']
+              port = db_cluster_info['Port']
+
+              # Get the current secret value
+              current_secret_value = secretsmanager_client.get_secret_value(SecretId=secret_name)['SecretString']
+              current_secret_json = json.loads(current_secret_value)
+
+              # Update the secret with additional details
+              updated_secret_json = {
+                  "engine": "mysql",
+                  "host": host,
+                  "username": current_secret_json['username'],
+                  "password": current_secret_json['password'],
+                  "dbname": os.environ['DB_NAME'],
+                  "port": port
+              }
+
+              secretsmanager_client.update_secret(
+                  SecretId=secret_name,
+                  SecretString=json.dumps(updated_secret_json)
+              )
+
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Secret updated successfully')
+              }
+      Environment:
+        Variables:
+          DB_NAME: !Ref DatabaseName
+          SecretName: !Ref DBCredentialsSecret
+          DBClusterIdentifier: !Ref DBCluster
+      Runtime: python3.9
+      Timeout: 60
+      VpcConfig:
+        SubnetIds:
+          - !Sub '{{resolve:ssm:Subnet1${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet2${Env}}}'
+          - !Sub '{{resolve:ssm:Subnet3${Env}}}'
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: LambdaSecretUpdatePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:UpdateSecret
+                  - rds:DescribeDBClusters
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeInstances
+                  - ec2:AttachNetworkInterface
+                Resource: "*"
+  # Permission for CloudWatch Events to invoke the Lambda function
+  UpdateSecretFunctionPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !Ref UpdateSecretFunction
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt UpdateSecretFunctionEventRule.Arn
+  UpdateSecretFunctionEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - "aws.rds"
+        detail-type:
+          - "RDS DB Cluster Event"
+        detail:
+          eventName:
+            - "DB_CLUSTER_CREATED"
+      Targets:
+        - Arn: !GetAtt UpdateSecretFunction.Arn
+          Id: "UpdateSecretFunction"
+  VPCEndpointSecretsManagerSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Sub '{{resolve:ssm:VPCEndpointSecretsManagerSGId${Env}}}'
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+  VPCEndpointRDSSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Sub '{{resolve:ssm:VPCEndpointRDSSGId${Env}}}'
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
 Outputs:
   GlobalDBCluster:
     Value: !Ref GlobalDBCluster
