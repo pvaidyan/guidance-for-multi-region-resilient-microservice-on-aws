@@ -125,14 +125,12 @@ Resources:
           - Effect: Allow
             Action:
               - logs:CreateLogGroup
-            Resource: arn:aws:logs:us-west-2:511925798765:*
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - logs:CreateLogStream
               - logs:PutLogEvents
-            Resource:
-              - >-
-                arn:aws:logs:us-west-2:511925798765:log-group:/aws/lambda/reconciliation-test:*
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/reconciliation-test:*'
           - Effect: Allow
             Action:
               - rds:RestoreDBClusterFromSnapshot

@@ -19,7 +19,8 @@ COMPOSE_DOCKER_CLI_BUILD=0
 ####
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
-	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring
+	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
+	secrets-rotation
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 deploy: deploy-all
@@ -241,6 +242,15 @@ monitoring: restore-reconciliation
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./monitoring.yml \
 	--stack-name monitoring${ENV} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides PrimaryRegion=${PRIMARY_REGION} Env=${ENV} SecondaryRegion=${STANDBY_REGION}
 
+secrets-rotation: primary_region_orders-db primary_region_catalog-db
+	@echo "Creating secrets rotation resources in ${PRIMARY_REGION}"
+	@echo "Step 1:Building Lambda Layers"
+	./database/secrets-rotation/build-lambda-layer.sh
+	@echo "Step 2:Deploying Lambda"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
+	@aws cloudformation package --template-file ./database/secrets-rotation/src/secrets-rotation.yaml --region ${PRIMARY_REGION} --s3-bucket $(result) --output-template-file ./database/secrets-rotation/src/out.yaml
+	@aws cloudformation deploy --template-file ./database/secrets-rotation/src/out.yaml --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} OrdersDBCredentialsSecretId=mr-app/orders-global-db-cluster-UserCredentials${ENV} CatalogDBCredentialsSecretId=mr-app/catalog-global-db-cluster-UserCredentials${ENV}
+
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 
@@ -248,8 +258,12 @@ test-creds:
 	@echo "Current AWS session:"
 	@aws sts get-caller-identity
 
-destroy-all: destroy-peer 
+destroy-all: destroy-peer destroy-restore-reconciliation-ssm destroy-secrets-rotation
 	@echo "Removed all cloudformation stacks!!!"
+
+destroy-secrets-rotation:
+	@echo "Deleting secrets rotation stack"
+	@aws cloudformation delete-stack --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION}
 
 destroy-restore-reconciliation-ssm:  	
 
