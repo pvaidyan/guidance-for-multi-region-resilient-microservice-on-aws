@@ -98,6 +98,9 @@ Resources:
               AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: 'kms:*'
             Resource: '*'
+            Condition:
+              StringEquals:
+                aws:ResourceAccount: !Sub ${AWS::AccountId}
   DBHostSecret:
     Type: 'AWS::SSM::Parameter'
     Properties:
@@ -210,10 +213,16 @@ Resources:
                   - "logs:PutLogEvents"
                 Effect: Allow
                 Resource: "arn:aws:logs:*:*:*"
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
               - Action:
                   - "rds:ModifyDBCluster"
                 Effect: Allow
                 Resource: "arn:aws:rds:*:*:cluster:*"
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
             Version: "2012-10-17"
           PolicyName: root
     Type: "AWS::IAM::Role"

@@ -265,15 +265,19 @@ destroy-secrets-rotation:
 	@echo "Deleting secrets rotation stack"
 	@aws cloudformation delete-stack --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION}
 
-destroy-restore-reconciliation-ssm:  	
+destroy-monitoring:
+	@echo "Deleting monitoring stack"
+	@aws cloudformation delete-stack --stack-name monitoring${ENV} --region ${PRIMARY_REGION}
+
+destroy-restore-reconciliation-ssm: destroy-monitoring
 
 	echo "Deleting Aurora database instances and clusters in ${STANDBY_REGION} region..."
 	./clean-up-aurora-cluster.sh ${STANDBY_REGION}
-	@echo "Deleteing SSM automation runbook in ${PRIMARY_REGION}"
+	@echo "Deleting SSM automation runbook in ${PRIMARY_REGION}"
 	@aws cloudformation delete-stack --stack-name crdr-orders-ssm${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION}	
 	@aws cloudformation wait stack-delete-complete --stack-name reconciliation-orders-ssm${ENV} --region ${STANDBY_REGION}
-	@echo "Deleteing IAM Role for restore-reconcliation"
+	@echo "Deleting IAM Role for restore-reconcliation"
 	@aws cloudformation delete-stack --stack-name crdr-roles${ENV} --region ${PRIMARY_REGION}
 
 destroy-ecr-primary: destroy-apps-primary

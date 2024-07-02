@@ -107,11 +107,16 @@ Resources:
                       - !Ref AWS::AccountId
                       - "subgrp"
                       - "orders-recon-dbcluster-subnet-group"
-
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
               - Effect: Allow
                 Action: ["rds:DescribeDBClusterSnapshots"]
                 Resource: 
-                  - "*"              
+                  - "*"
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
               - Effect: Allow
                 Action: ["kms:DescribeKey","kms:CreateGrant"]
                 Resource:  
@@ -121,6 +126,9 @@ Resources:
                 Action: ["lambda:InvokeAsync","lambda:InvokeFunction"]
                 Resource: 
                     - "*"
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
                   
   CrossRegionSnapshotCopySSMAutomationRoleArn:
     Type: AWS::SecretsManager::Secret

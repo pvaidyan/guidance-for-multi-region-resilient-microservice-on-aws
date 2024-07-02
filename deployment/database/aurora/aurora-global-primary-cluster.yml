@@ -286,16 +286,8 @@ Resources:
         - Key: Name
           Value: !Sub 'secrets-update-aurora-mysql-security-group${Env}'
       SecurityGroupEgress:
-        - DestinationSecurityGroupId: !Sub '{{resolve:ssm:VPCEndpointSecretsManagerSGId${Env}}}'
-          Description: "Allow VPC Endpoint Access for Secrets Manager"
-          IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-        - DestinationSecurityGroupId: !Sub '{{resolve:ssm:VPCEndpointRDSSGId${Env}}}'
-          Description: "Allow VPC Endpoint Access for RDS"
-          IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
   UpdateSecretFunction:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -306,13 +298,17 @@ Resources:
           import json
           import boto3
           import os
-
+          import logging
+          import cfnresponse
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
           def handler(event, context):
+            try:
+              responseData = {}
               secretsmanager_client = boto3.client('secretsmanager')
               rds_client = boto3.client('rds')
 
-              secret_name = event['SecretName']
-              db_cluster_identifier = event['DBClusterIdentifier']
+              secret_name = os.environ['SecretName']
+              db_cluster_identifier = os.environ['DBClusterIdentifier']
 
               # Describe the DB cluster to get the endpoint and other details
               db_cluster_info = rds_client.describe_db_clusters(DBClusterIdentifier=db_cluster_identifier)['DBClusters'][0]
@@ -333,22 +329,25 @@ Resources:
                   "port": port
               }
 
-              secretsmanager_client.update_secret(
+              responseData['secrets_manager_response'] = secretsmanager_client.update_secret(
                   SecretId=secret_name,
                   SecretString=json.dumps(updated_secret_json)
               )
 
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps('Secret updated successfully')
-              }
+              logging.info('Sending %s to cloudformation', responseData['secrets_manager_response'])
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+            except Exception as err:
+              responseData = {}
+              responseData['message'] = 'Failed'
+              logging.error(err)
+              cfnresponse.send(event, context, cfnresponse.FAILED, responseData)
       Environment:
         Variables:
           DB_NAME: !Ref DatabaseName
           SecretName: !Ref DBCredentialsSecret
           DBClusterIdentifier: !Ref DBCluster
-      Runtime: python3.9
-      Timeout: 60
+      Runtime: python3.10
+      Timeout: 300
       VpcConfig:
         SubnetIds:
           - !Sub '{{resolve:ssm:Subnet1${Env}}}'
@@ -380,6 +379,9 @@ Resources:
                   - secretsmanager:UpdateSecret
                   - rds:DescribeDBClusters
                 Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
               - Effect: Allow
                 Action:
                   - ec2:DescribeNetworkInterfaces
@@ -388,28 +390,24 @@ Resources:
                   - ec2:DescribeInstances
                   - ec2:AttachNetworkInterface
                 Resource: "*"
-  # Permission for CloudWatch Events to invoke the Lambda function
-  UpdateSecretFunctionPermission:
-    Type: 'AWS::Lambda::Permission'
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Sub ${AWS::AccountId}
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: "arn:aws:s3:::cloudformation-custom-resource-response-useast1/*"
+  InvokeCustomLambda:
+    DependsOn:
+    - UpdateSecretFunction
+    - DBCluster
+    - DBInstance1
+    - DBInstance2
+    Type: Custom::InvokeCustomLambda
     Properties:
-      Action: "lambda:InvokeFunction"
-      FunctionName: !Ref UpdateSecretFunction
-      Principal: "events.amazonaws.com"
-      SourceArn: !GetAtt UpdateSecretFunctionEventRule.Arn
-  UpdateSecretFunctionEventRule:
-    Type: 'AWS::Events::Rule'
-    Properties:
-      EventPattern:
-        source:
-          - "aws.rds"
-        detail-type:
-          - "RDS DB Cluster Event"
-        detail:
-          eventName:
-            - "DB_CLUSTER_CREATED"
-      Targets:
-        - Arn: !GetAtt UpdateSecretFunction.Arn
-          Id: "UpdateSecretFunction"
+      ServiceToken: !GetAtt UpdateSecretFunction.Arn
+      SecretName: !Ref DBCredentialsSecret
+      DBClusterIdentifier: !Ref DBCluster
   VPCEndpointSecretsManagerSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:

@@ -408,3 +408,11 @@ Resources:
       Type: String
       Name: !Sub VPCEndpointRDSSGId${Env}
       Value: !Ref VPCEndpointRDSSecurityGroup
+  VPCEndpointForS3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'

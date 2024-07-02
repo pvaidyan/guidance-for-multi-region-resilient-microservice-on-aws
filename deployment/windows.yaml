@@ -30,6 +30,7 @@ Resources:
         MaxSessionDuration: 3600
         ManagedPolicyArns: 
           - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+          - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
         Description: "SSM role for managed EC2 instances"
         Policies:
           - PolicyName: secretsManager
@@ -77,8 +78,13 @@ Resources:
     Properties:
       VpcId: !Ref 'VpcId'
       GroupDescription: OutboundOnly
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 10.1.0.0/16
       SecurityGroupEgress:
-        - 
-          CidrIp: "0.0.0.0/0"
-          Description: "Allow all egress"
-          IpProtocol: "-1"
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
