@@ -69,7 +69,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Layers:
-        - !Sub arn:aws:lambda:${AWS::Region}:${PowerToolsLambdaLayerAccountId}:layer:AWSLambdaPowertoolsPythonV2:20
+        - !Sub arn:aws:lambda:${AWS::Region}:${PowerToolsLambdaLayerAccountId}:layer:AWSLambdaPowertoolsPythonV2:74
       TracingConfig: 
         Mode: Active
       FunctionName: !Sub AutomationRegionalFailoverFunction${Env}
@@ -155,7 +155,7 @@ Resources:
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: !Sub 'AutomationRegionalFailoverFunction${Env}'
-          POWERTOOLS_METRICS_NAMESPACE: !Sub 'MultiRegionBatch${Env}'
+          POWERTOOLS_METRICS_NAMESPACE: !Sub 'MultiRegionApp${Env}'
           LOG_LEVEL: INFO
           ARC_ROUTING_CONTROL_PRIMARY_ARN: !Sub '{{resolve:secretsmanager:ArcRoutingControlPrimarySecret${Env}}}'
           ARC_ROUTING_CONTROL_STANDBY_ARN: !Sub '{{resolve:secretsmanager:ArcRoutingControlStandbySecret${Env}}}'
