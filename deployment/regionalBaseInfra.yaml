@@ -416,3 +416,56 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcEndpointType: Gateway
       VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+  VPCEndpointForSSM:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
+      VpcEndpointType: Interface
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSSMSecurityGroup
+  VPCEndpointForSSMMessages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssmmessages'
+      VpcEndpointType: Interface
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSSMSecurityGroup
+  VPCEndpointForEC2Messages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ec2messages'
+      VpcEndpointType: Interface
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref VPCEndpointSSMSecurityGroup
+  VPCEndpointSSMSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Sub '{{resolve:secretsmanager:VpcId-${AWS::Region}${Env}}}'
+      GroupDescription: VPC Endpoint SG
+      Tags:
+        - Key: Name
+          Value: 'VPC Endpoint for SSM SG'
+  VPCEndpointSSMSgParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub VPCEndpointSSMSGId${Env}
+      Value: !Ref VPCEndpointSSMSecurityGroup
