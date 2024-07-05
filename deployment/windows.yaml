@@ -96,3 +96,11 @@ Resources:
       FromPort: 443
       ToPort: 443
       SourceSecurityGroupId: !Ref SecurityGroup
+  VPCEndpointSecretsManagerSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Sub '{{resolve:ssm:VPCEndpointSecretsManagerSGId${Env}}}'
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref SecurityGroup

@@ -145,6 +145,14 @@ Resources:
       FromPort: 443
       ToPort: 443
       SourceSecurityGroupId: !Ref sgTask
+  VPCEndpointSSMSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Sub '{{resolve:ssm:VPCEndpointSSMSGId${Env}}}'
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref sgTask
   sgAlb:
     Type: AWS::EC2::SecurityGroup
     Properties: 
