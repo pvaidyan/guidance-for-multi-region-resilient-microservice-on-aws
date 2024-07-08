@@ -304,38 +304,43 @@ Resources:
           def handler(event, context):
             try:
               responseData = {}
-              secretsmanager_client = boto3.client('secretsmanager')
-              rds_client = boto3.client('rds')
-
-              secret_name = os.environ['SecretName']
-              db_cluster_identifier = os.environ['DBClusterIdentifier']
-
-              # Describe the DB cluster to get the endpoint and other details
-              db_cluster_info = rds_client.describe_db_clusters(DBClusterIdentifier=db_cluster_identifier)['DBClusters'][0]
-              host = db_cluster_info['Endpoint']
-              port = db_cluster_info['Port']
-
-              # Get the current secret value
-              current_secret_value = secretsmanager_client.get_secret_value(SecretId=secret_name)['SecretString']
-              current_secret_json = json.loads(current_secret_value)
-
-              # Update the secret with additional details
-              updated_secret_json = {
-                  "engine": "mysql",
-                  "host": host,
-                  "username": current_secret_json['username'],
-                  "password": current_secret_json['password'],
-                  "dbname": os.environ['DB_NAME'],
-                  "port": port
-              }
-
-              responseData['secrets_manager_response'] = secretsmanager_client.update_secret(
-                  SecretId=secret_name,
-                  SecretString=json.dumps(updated_secret_json)
-              )
-
-              logging.info('Sending %s to cloudformation', responseData['secrets_manager_response'])
-              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+              if event.get('RequestType') == 'Create':
+                secretsmanager_client = boto3.client('secretsmanager')
+                rds_client = boto3.client('rds')
+  
+                secret_name = os.environ['SecretName']
+                db_cluster_identifier = os.environ['DBClusterIdentifier']
+  
+                # Describe the DB cluster to get the endpoint and other details
+                db_cluster_info = rds_client.describe_db_clusters(DBClusterIdentifier=db_cluster_identifier)['DBClusters'][0]
+                host = db_cluster_info['Endpoint']
+                port = db_cluster_info['Port']
+  
+                # Get the current secret value
+                current_secret_value = secretsmanager_client.get_secret_value(SecretId=secret_name)['SecretString']
+                current_secret_json = json.loads(current_secret_value)
+  
+                # Update the secret with additional details
+                updated_secret_json = {
+                    "engine": "mysql",
+                    "host": host,
+                    "username": current_secret_json['username'],
+                    "password": current_secret_json['password'],
+                    "dbname": os.environ['DB_NAME'],
+                    "port": port
+                }
+  
+                responseData['secrets_manager_response'] = secretsmanager_client.update_secret(
+                    SecretId=secret_name,
+                    SecretString=json.dumps(updated_secret_json)
+                )
+  
+                logging.info('Sending %s to cloudformation', responseData['secrets_manager_response'])
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+              else:
+                logging.error('Unsupported operation: %s', event.get('RequestType'))
+                responseData['message'] = "Invalid operation"
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
             except Exception as err:
               responseData = {}
               responseData['message'] = 'Failed'
