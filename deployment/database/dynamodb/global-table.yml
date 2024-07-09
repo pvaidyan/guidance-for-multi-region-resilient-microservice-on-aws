@@ -41,9 +41,15 @@ Resources:
         - Region: !Ref PrimaryRegion
           PointInTimeRecoverySpecification:
             PointInTimeRecoveryEnabled: true
+          Tags:
+            - Key: ChaosAllowed
+              Value: True
         - Region: !Ref SecondaryRegion
           PointInTimeRecoverySpecification:
             PointInTimeRecoveryEnabled: true
+          Tags:
+            - Key: ChaosAllowed
+              Value: True
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
       SSESpecification:

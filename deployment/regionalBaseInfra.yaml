@@ -190,6 +190,8 @@ Resources:
             - "-"
             - - !Ref NamingPrefix
               - Private
+        - Key: ChaosAllowed
+          Value: True
   PrivateRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -208,6 +210,8 @@ Resources:
             - "-"
             - - !Ref NamingPrefix
               - Private
+        - Key: ChaosAllowed
+          Value: True
   PrivateRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -226,6 +230,8 @@ Resources:
             - "-"
             - - !Ref NamingPrefix
               - Private
+        - Key: ChaosAllowed
+          Value: True
   PrivateRouteTableAssociation3:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:

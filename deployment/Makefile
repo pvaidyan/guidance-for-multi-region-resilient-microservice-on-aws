@@ -20,7 +20,7 @@ COMPOSE_DOCKER_CLI_BUILD=0
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
-	secrets-rotation
+	secrets-rotation chaos-engineering
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 deploy: deploy-all
@@ -251,6 +251,14 @@ secrets-rotation: primary_region_orders-db primary_region_catalog-db
 	@aws cloudformation package --template-file ./database/secrets-rotation/src/secrets-rotation.yaml --region ${PRIMARY_REGION} --s3-bucket $(result) --output-template-file ./database/secrets-rotation/src/out.yaml
 	@aws cloudformation deploy --template-file ./database/secrets-rotation/src/out.yaml --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} OrdersDBCredentialsSecretId=mr-app/orders-global-db-cluster-UserCredentials${ENV} CatalogDBCredentialsSecretId=mr-app/catalog-global-db-cluster-UserCredentials${ENV}
 
+chaos-engineering:
+	@echo "Creating chaos experiments in ${PRIMARY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
+	@aws cloudformation deploy --template-file ./chaos/multi-region-scenario.yaml --stack-name chaos${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} Region=${STANDBY_REGION}
+	@echo "Creating chaos experiments in ${STANDBY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(STANDBY_REGION) --query "Parameter.Value" --output text ))
+	@aws cloudformation deploy --template-file ./chaos/multi-region-scenario.yaml --stack-name chaos${ENV} --region ${STANDBY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} Region=${PRIMARY_REGION}
+
 clean:
 	@echo "To remove all stacks deployed by this solution, run 'make destroy-all'"
 
@@ -258,8 +266,13 @@ test-creds:
 	@echo "Current AWS session:"
 	@aws sts get-caller-identity
 
-destroy-all: destroy-peer destroy-restore-reconciliation-ssm destroy-secrets-rotation
+destroy-all: destroy-peer destroy-restore-reconciliation-ssm destroy-secrets-rotation destroy-chaos-engineering
 	@echo "Removed all cloudformation stacks!!!"
+
+destroy-chaos-engineering:
+	@echo "Deleting Chaos Engineering stacks"
+	@aws cloudformation delete-stack --stack-name chaos${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation delete-stack --stack-name chaos${ENV} --region ${STANDBY_REGION}
 
 destroy-secrets-rotation:
 	@echo "Deleting secrets rotation stack"

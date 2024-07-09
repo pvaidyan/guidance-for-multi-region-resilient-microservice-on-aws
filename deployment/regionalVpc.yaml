@@ -176,7 +176,10 @@ Resources:
           Tierings: 
             - 
               AccessTier: ARCHIVE_ACCESS
-              Days: 90   
+              Days: 90
+      Tags:
+        - Key: ChaosAllowed
+          Value: True
   canaryRole:
     Type: "AWS::IAM::Role"
     Properties:
