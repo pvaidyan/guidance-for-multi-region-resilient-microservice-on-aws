@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Block application network traffic from experiment Region to target Region and pause cross-Region replication
+
+Parameters:
+  Env:
+    Type: String
+    Default: ''
+    Description: String to enable multiple deployments per AWS region
+
+  Duration:
+    Type: String
+    Default: PT20M
+    Description: The duration for which the actions will be performed
+
+  Region:
+    Type: String
+    Default: us-west-2
+    Description: The region in which the actions will be performed
+
+  TransitGatewayTagKey:
+    Type: String
+    Default: ChaosAllowed
+    Description: The key of the tag for identifying the Transit Gateway
+
+  TransitGatewayTagValue:
+    Type: String
+    Default: True
+    Description: The value of the tag for identifying the Transit Gateway
+
+  SubnetTagKey:
+    Type: String
+    Default: ChaosAllowed
+    Description: The key of the tag for identifying the Subnet
+
+  SubnetTagValue:
+    Type: String
+    Default: True
+    Description: The value of the tag for identifying the Subnet
+
+  S3BucketTagKey:
+    Type: String
+    Default: ChaosAllowed
+    Description: The key of the tag for identifying the S3 Bucket
+
+  S3BucketTagValue:
+    Type: String
+    Default: True
+    Description: The value of the tag for identifying the S3 Bucket
+
+  DynamoDBTagKey:
+    Type: String
+    Default: ChaosAllowed
+    Description: The key of the tag for identifying the DynamoDB Global Table
+
+  DynamoDBTagValue:
+    Type: String
+    Default: True
+    Description: The value of the tag for identifying the DynamoDB Global Table
+
+Resources:
+  MultiRegionScenario:
+    Type: AWS::FIS::ExperimentTemplate
+    Properties:
+      Description: Block application network traffic from experiment Region to target Region and pause cross-Region replication
+      RoleArn: !GetAtt ExperimentRole.Arn
+      Targets:
+        TransitGateway:
+          ResourceType: aws:ec2:transit-gateway
+          ResourceTags:
+            Key: !Ref TransitGatewayTagKey
+            Value: !Ref TransitGatewayTagValue
+          SelectionMode: ALL
+        Subnet:
+          ResourceType: aws:ec2:subnet
+          ResourceTags:
+            Key: !Ref SubnetTagKey
+            Value: !Ref SubnetTagValue
+          SelectionMode: ALL
+        S3Bucket:
+          ResourceType: aws:s3:bucket
+          ResourceTags:
+            Key: !Ref S3BucketTagKey
+            Value: !Ref S3BucketTagValue
+          SelectionMode: ALL
+        DynamoDBGlobalTable:
+          ResourceType: aws:dynamodb:global-table
+          ResourceTags:
+            Key: !Ref DynamoDBTagKey
+            Value: !Ref DynamoDBTagValue
+          SelectionMode: ALL
+      Actions:
+        DisruptTransitGatewayConnectivity:
+          ActionId: aws:network:transit-gateway-disrupt-cross-region-connectivity
+          Parameters:
+            duration: !Ref Duration
+            region: !Ref Region
+          Targets:
+            TransitGateways: TransitGateway
+        DisruptSubnetConnectivity:
+          ActionId: aws:network:route-table-disrupt-cross-region-connectivity
+          Parameters:
+            duration: !Ref Duration
+            region: !Ref Region
+          Targets:
+            Subnets: Subnet
+        PauseS3Replication:
+          ActionId: aws:s3:bucket-pause-replication
+          Parameters:
+            duration: !Ref Duration
+            region: !Ref Region
+          Targets:
+            Buckets: S3Bucket
+        PauseDynamoDBReplication:
+          ActionId: aws:dynamodb:global-table-pause-replication
+          Parameters:
+            duration: !Ref Duration
+          Targets:
+            Tables: DynamoDBGlobalTable
+      StopConditions:
+        - Source: none
+      LogConfiguration:
+        LogSchemaVersion: 2
+        CloudWatchLogsConfiguration:
+          LogGroupArn: !GetAtt FISExperimentLogGroup.Arn
+      Tags:
+        Name: !Sub 'Cross-Region: Connectivity to ${Region}'
+        Env: !Ref Env
+      ExperimentOptions:
+        AccountTargeting: single-account
+        EmptyTargetResolutionMode: skip
+
+  ExperimentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: fis.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FISExperimentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:*'
+                  - 's3:*'
+                  - 'dynamodb:*'
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:PrincipalAccount: !Sub "${AWS::AccountId}"
+                    aws:ResourceAccount: !Ref 'AWS::AccountId'
+
+  FISLogGroupKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Enabled: true
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-loggroup
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Join
+                - ''
+                - - !Sub 'arn:${AWS::Partition}:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Enable Cloudwatch access
+            Effect: Allow
+            Principal:
+              Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: '*'
+
+  FISExperimentLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      KmsKeyId: !GetAtt FISLogGroupKey.Arn
+      LogGroupName: chaos-experiment-logs
+      RetentionInDays: 7
+
+Outputs:
+  ExperimentTemplateId:
+    Description: The ID of the created FIS experiment template
+    Value: !Ref MultiRegionScenario
