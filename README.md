@@ -16,34 +16,36 @@ e.g. catalog, assets, orders, cats, checkout to support flows like displaying li
 
 ![Application Running in active/active state](assets/static//01.architecture-diagram-mr-ms.png)
 
-1. Route53 Failover records use Route53 Application Recovery Controller (ARC) managed Health Checks to route requests to the active regions.
+1. Amazon Route53 Failover records use Route53 Application Recovery Controller (ARC) managed Health Checks to route requests to the active regions
 
-2. Application Load Balancers (ALB) send requests to the front-end ECS tasks.  Depending on the page being accessed, the front-end will make a service call to the appropriate service via ECS Service Connect.
+2. Application Load Balancers (ALB) send requests to the UI tasks on Amazon Elastic Container Service (ECS).  Depending on the page being accessed, the UI will make a service call to the appropriate service via ECS Service Connect
 
-3. As records are written to the writer instances of the  “Catalog” and “Orders” Amazon Aurora global databases, they are replicated to the standby clusters.
+3. As records are written to the writer instances of the  “Catalog” and “Orders” Amazon Aurora global databases, they are replicated to the standby clusters
 
-4. As records are written to the “Carts” Amazon DynamoDB global table in one region, they are replicated to the table in the other region.
+4. As records are written to the “Carts” Amazon DynamoDB global table in one region, they are replicated to the table in the other region
 
-5. Amazon CloudWatch Synthetics from each region sends requests to the application in each region via the ALB’s address and to the DNS name resolved through Route53.
+5. The checkout service uses Amazon ElastiCache for Redis for temporarily caching the contents of the cart until the order is placed.
 
-6. AWS Systems Manager Automation Runbooks automate the enabling and disabling of the ARC routing controls and the failing-over of the Aurora Global Databases.
+6. The orders service leverages Amazon RabbitMQ broker to publish order creation events for any downstream consumption purposes.
 
+7. Amazon CloudWatch Synthetics from each region sends requests to the application in each region via the ALB’s address and to the DNS name resolved through Route53 and pushes the metrics, logs and traces to CloudWatch.
+
+8. AWS Systems Manager Automation Runbooks automate the enabling and disabling of the ARC routing controls and the failing-over of the Aurora Global Databases
 
 
 ### 2. Cross Region Failover 
 
 ![Application Running in failover state](assets/static//02.architecture-diagram-dr-mr-ms.png)
 
-1. AWS Systems Manager (SSM) runbook  toggles the Route53 Application Recovery Controller (ARC) routing control “off” which causes the managed Health Check for the region to enter a “Failed” state.
+1. AWS Systems Manager (SSM) runbook (triggered by an operator manually)  toggles the Route53 Application Recovery Controller (ARC) routing control “off” which causes the managed Health Check for the region to enter a “Failed” state.
 
 2. Amazon Route53 returns only the remaining healthy region as clients resolve the application’s fully-qualified domain name.
 
-3. SSM runbook executes Aurora Global Database managed failover which promotes the standby region to the primary for writes. 
+3. SSM runbook executes Amazon Aurora Global Database managed failover which promotes the standby region to the primary for writes
 
-4. Former primary is rebuilt as a secondary by the Aurora service.
+4. Former primary is rebuilt as a secondary by the Aurora service
 
-5. SSM runbook recovers a copy of the old primary database from a snapshot and compares the data in the new primary database to the old and creates a missing transaction report.
-
+5. SSM runbook recovers a copy of the old primary database from a snapshot and compares the data in the new primary database to the old and creates a missing transaction report
 
 
 ## Pre-requisites
@@ -101,7 +103,7 @@ We use make file to automate the deployment commands. The make file is optimized
 
 1. Deploy the full solution from the `deployment` folder
     ```shell
-    make Makefile deploy
+    make deploy
     ```
 
 ## Verify the deployment
@@ -137,6 +139,19 @@ DynamoDB and Aurora Global database.
 
 ![System Dashboard](assets/static/04.system-dashboard.png)
 
+## Injecting Chaos to simulate failures
+To induce failures into your environment, you can use the `multi-region-scenario.yml` and cause a regional service disruption. This cloudformation template uses AWS Fault Injection Service to simulate disruptions like pausing DynamoDB Global Table replication and disrupting cross region network connectivity from subnets. Running this experiment will also allow you to perform a Regional failover and observe the reconciliation process.
+
+The chaos experiment template is already deployed as part of the solution deployment process.
+
+The following sequence of steps can be used to test this solution.
+
+1. The first step is to get the experimentTemplateId to use in our experiment; use the below command for that and make a note of the id value
+`export templateId=$(aws fis list-experiment-templates --query='experimentTemplates[?tags.Name==`Cross-Region: Connectivity to us-west-2`].{id: id}' --output text)`
+
+2. Execute the experiment in the primary Region (us-east-1) using the following command using the templateId from the previous step.
+`aws fis start-experiment --experiment-template-id $templateId`
+
 ## Cleanup
 
 Note: If you have created reconciliation Amazon Aurora Database Clusters and Database Instances in the Standby Region, please delete all those instances before going to the next step.
@@ -145,7 +160,6 @@ Delete all the cloudformation stacks and associated resources from both the Regi
     ```shell
     make destroy-all
     ```
-    
 
 ## Security
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
