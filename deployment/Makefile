@@ -6,7 +6,8 @@ STANDBY_REGION=us-west-2
 
 ####
 # Generate Tag basedon git commit ref
-TAG=$(shell git rev-parse --short HEAD)
+#TAG=$(shell git rev-parse --short HEAD)
+$(eval TAG:=$(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 7))
 # Generate Tag based on date hash
 # TAG=$(date|sum|awk '{print $1}')
 
