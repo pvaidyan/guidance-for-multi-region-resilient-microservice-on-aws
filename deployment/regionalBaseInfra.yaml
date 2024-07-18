@@ -249,7 +249,7 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       RepositoryName: !Sub 'checkout${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
@@ -259,7 +259,7 @@ Resources:
       ImageScanningConfiguration:
           ScanOnPush: true
       RepositoryName: !Sub 'catalog${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
@@ -269,7 +269,7 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       RepositoryName: !Sub 'carts${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
@@ -279,7 +279,7 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       RepositoryName: !Sub 'assets${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
@@ -289,7 +289,7 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       RepositoryName: !Sub 'orders${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
@@ -299,7 +299,7 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush: true
       RepositoryName: !Sub 'ui${Env}'
-      ImageTagMutability: IMMUTABLE
+      ImageTagMutability: MUTABLE
       EncryptionConfiguration:
         EncryptionType: KMS
         KmsKey: !Ref KmsKey
