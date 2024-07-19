@@ -1,31 +1,40 @@
 #!/bin/sh
 #set -xv
 BUCKET=$1
-# test if an s3 bucket exists and delete all objects and delete markers from it
-# if it does not exist, just print a message
-bucketExists=`aws s3api list-buckets --query "Buckets[].Name" | grep -w "$BUCKET" | wc -l`
 
-if [ "$bucketExists" -eq 1 ]
-then
-  objects=$(aws s3api list-object-versions --bucket "$BUCKET" --no-paginate --output=json --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')
-  count=$(awk '/"Objects": null/ {print}' <<< "$objects" | wc -l)
-  while [ "$count" -ne 1 ];
-  do
+# Test if an S3 bucket exists and delete all objects and delete markers from it
+# If it does not exist, just print a message
+bucketExists=$(aws s3api list-buckets --query "Buckets[].Name" | grep -w "$BUCKET" | wc -l)
+
+if [ "$bucketExists" -eq 1 ]; then
+  echo "Bucket $BUCKET exists. Deleting all objects and delete markers..."
+
+  # Delete object versions in batches
+  while true; do
+    objects=$(aws s3api list-object-versions --bucket "$BUCKET" --max-items 1000 --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' --output json)
+    if [ "$(echo "$objects" | jq '.Objects | length')" -eq 0 ]; then
+      break
+    fi
     echo 'Deleting Object Versions...'
-    aws s3api delete-objects --bucket "$BUCKET" --delete "$objects" --no-cli-pager
-    objects=$(aws s3api list-object-versions --bucket "$BUCKET" --no-paginate --output=json --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')
-    count=$(awk '/"Objects": null/ {print}' <<< "$objects" | wc -l)
+    echo "$objects" | jq '{Objects: .Objects}' > delete.json
+    aws s3api delete-objects --bucket "$BUCKET" --delete file://delete.json --no-cli-pager
   done
 
-  deleteMarkers=$(aws s3api list-object-versions --bucket "$BUCKET" --no-paginate --output=json --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')
-  deleteMarkersCount=$(awk '/"Objects": null/ {print}' <<< "$deleteMarkers" | wc -l)
-  while [ "$deleteMarkersCount" -ne 1 ];
-  do
+  # Delete delete markers in batches
+  while true; do
+    deleteMarkers=$(aws s3api list-object-versions --bucket "$BUCKET" --max-items 1000 --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' --output json)
+    if [ "$(echo "$deleteMarkers" | jq '.Objects | length')" -eq 0 ]; then
+      break
+    fi
     echo 'Deleting DeleteMarkers...'
-    aws s3api delete-objects --bucket "$BUCKET" --delete "$deleteMarkers" --no-cli-pager
-    deleteMarkers=$(aws s3api list-object-versions --bucket "$BUCKET" --no-paginate --output=json --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')
-    deleteMarkersCount=$(awk '/"Objects": null/ {print}' <<< "$deleteMarkers" | wc -l)
+    echo "$deleteMarkers" | jq '{Objects: .Objects}' > delete.json
+    aws s3api delete-objects --bucket "$BUCKET" --delete file://delete.json --no-cli-pager
   done
+
+  echo "All objects and delete markers in bucket $BUCKET have been deleted."
 else
   echo "Bucket $BUCKET does not exist..."
 fi
+
+# Clean up
+rm -f delete.json
