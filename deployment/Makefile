@@ -21,7 +21,7 @@ COMPOSE_DOCKER_CLI_BUILD=0
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
-	secrets-rotation restart-services chaos-engineering
+	secrets-rotation chaos-engineering
 deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
 
 deploy: deploy-all
@@ -51,10 +51,10 @@ create-peer:
 	fi
 	@echo "Deploying VPC Stack in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} 
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 	@echo "Deploying VPC Stack in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
-	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} 
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
 
 ecr-login:
 	@echo "Verifying ECR Login in ${PRIMARY_REGION}"
@@ -167,7 +167,7 @@ canaries_standby: global_routing
 failover_primary: global_routing
 	@echo "Deploy the Regional Failover runbook resources in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./failover.yaml \
-	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM 
+	--stack-name failover${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} --capabilities CAPABILITY_IAM
 failover_standby: global_routing
 	@echo "Deploy the Regional Failover runbook resources in ${STANDBY_REGION}"
 	@aws cloudformation deploy --region ${STANDBY_REGION} --template ./failover.yaml \
@@ -252,7 +252,7 @@ secrets-rotation: primary_region_orders-db primary_region_catalog-db
 	@aws cloudformation package --template-file ./database/secrets-rotation/src/secrets-rotation.yaml --region ${PRIMARY_REGION} --s3-bucket $(result) --output-template-file ./database/secrets-rotation/src/out.yaml
 	@aws cloudformation deploy --template-file ./database/secrets-rotation/src/out.yaml --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} OrdersDBCredentialsSecretId=mr-app/orders-global-db-cluster-UserCredentials${ENV} CatalogDBCredentialsSecretId=mr-app/catalog-global-db-cluster-UserCredentials${ENV}
 
-restart-ecs-services: secrets-rotation
+restart-ecs-services:
 	@echo "Restarting ECS Services"
 	@if [ "$(Env)" = "" ]; then \
 		./restart-services.sh --services catalog,orders; \
@@ -275,7 +275,7 @@ test-creds:
 	@echo "Current AWS session:"
 	@aws sts get-caller-identity
 
-destroy-all: destroy-peer destroy-restore-reconciliation-ssm destroy-secrets-rotation destroy-chaos-engineering
+destroy-all: destroy-peer destroy-restore-reconciliation-ssm destroy-chaos-engineering
 	@echo "Removed all cloudformation stacks!!!"
 
 destroy-chaos-engineering:
@@ -286,6 +286,7 @@ destroy-chaos-engineering:
 destroy-secrets-rotation:
 	@echo "Deleting secrets rotation stack"
 	@aws cloudformation delete-stack --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION}
+	@aws cloudformation wait stack-delete-complete --stack-name secrets-rotation${ENV} --region ${PRIMARY_REGION}
 
 destroy-monitoring:
 	@echo "Deleting monitoring stack"
@@ -383,7 +384,7 @@ destroy-failover-primary:
 	@aws cloudformation delete-stack --stack-name failover${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation wait stack-delete-complete --stack-name failover${ENV} --region ${PRIMARY_REGION}
 
-destroy-databases-primary: destroy-apps-primary destroy-databases-standby
+destroy-databases-primary: destroy-secrets-rotation destroy-apps-primary destroy-databases-standby
 	@echo "Deleting databases in ${PRIMARY_REGION}..."
 	@aws cloudformation delete-stack --stack-name catalog-db-stack${ENV} --region ${PRIMARY_REGION}
 	@aws cloudformation delete-stack --stack-name orders-db-stack${ENV} --region ${PRIMARY_REGION}
