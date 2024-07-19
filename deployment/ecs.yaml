@@ -386,6 +386,9 @@ Resources:
       ClusterSettings:
         - Name: containerInsights
           Value: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub mr-app-ecs-cluster${Env}
   
   #Carts Service
   CartsTaskExecutionRole:
