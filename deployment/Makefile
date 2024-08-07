@@ -254,10 +254,10 @@ secrets-rotation: primary_region_orders-db primary_region_catalog-db
 
 restart-ecs-services:
 	@echo "Restarting ECS Services"
-	@if [ "$(Env)" = "" ]; then \
+	@if [ ${ENV} = "" ]; then \
 		./restart-services.sh --services catalog,orders; \
 	else \
-		./restart-services.sh --env $(Env) --services catalog,orders; \
+		./restart-services.sh --env ${ENV} --services catalog,orders; \
 	fi
 
 chaos-engineering:
