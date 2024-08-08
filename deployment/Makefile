@@ -1,5 +1,5 @@
 # Change these for your environment
-ENV=d
+ENV=
 PRIMARY_REGION=us-east-1
 STANDBY_REGION=us-west-2
 ####
