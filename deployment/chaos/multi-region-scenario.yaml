@@ -118,8 +118,8 @@ Resources:
       Policies:
         - PolicyName: CrossRegionPolicy
           PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
+            Version: '2012-10-17'
+            Statement:
             - Sid: RouteTableDisruptConnectivity1
               Effect: Allow
               Action: 'ec2:CreateRouteTable'

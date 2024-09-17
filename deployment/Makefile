@@ -260,7 +260,7 @@ restart-ecs-services:
 		./restart-services.sh --env ${ENV} --services catalog,orders; \
 	fi
 
-chaos-engineering:
+chaos-engineering: create-peer
 	@echo "Creating chaos experiments in ${PRIMARY_REGION}"
 	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
 	@aws cloudformation deploy --template-file ./chaos/multi-region-scenario.yaml --stack-name chaos${ENV} --region ${PRIMARY_REGION} --capabilities CAPABILITY_NAMED_IAM --parameter-overrides Env=${ENV} Region=${STANDBY_REGION}
