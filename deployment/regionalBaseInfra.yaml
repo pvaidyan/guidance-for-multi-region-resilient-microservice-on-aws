@@ -22,7 +22,9 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
     Default: KmsKey
     Description: CMK Id
-
+  PrimaryOnly:
+    Type: String
+    Default: false
 
 Mappings:
   RegionMap:
@@ -56,7 +58,9 @@ Conditions:
   isStandby: !Equals
     - !Ref AWS::Region
     - us-west-2
-
+  isPrimaryOnly: !Equals
+    - !Ref PrimaryOnly
+    - true
 Resources:
   #VPC
   # Vpc:

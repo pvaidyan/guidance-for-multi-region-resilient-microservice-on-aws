@@ -18,6 +18,21 @@ MAKE=/usr/bin/make
 DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
+deploy-primary-only: primary_only_infrastructure primary_ecs
+
+primary_only_infrastructure:
+	@echo "Verifying if the AWSServiceRoleForECS exists; if not; this will be created for you..."
+	$(eval result:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForECS'])"))
+	@if [ "$(result)" -eq "0" ]; then \
+		aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --no-cli-pager; \
+	fi
+	@echo "Deploying VPC Stack in ${PRIMARY_REGION}"
+	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} PrimaryOnly=true
+
+	@echo "Deploy Infrastructure resources in ${PRIMARY_REGION}"
+	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
+	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV}
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
