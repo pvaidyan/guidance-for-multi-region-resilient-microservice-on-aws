@@ -147,7 +147,7 @@ The chaos experiment template is already deployed as part of the solution deploy
 The following sequence of steps can be used to test this solution.
 
 1. The first step is to get the experimentTemplateId to use in our experiment; use the below command for that and make a note of the id value
-`export templateId=$(aws fis list-experiment-templates --query='experimentTemplates[?tags.Name==`Cross-Region: Connectivity to us-west-2`].{id: id}' --output text)`
+`export templateId=$(aws fis list-experiment-templates --output json --no-cli-pager | jq -r '.experimentTemplates[] | select(.tags["Name"] == "Cross-Region: Connectivity to us-west-2") | .id')`
 
 2. Execute the experiment in the primary Region (us-east-1) using the following command using the templateId from the previous step.
 `aws fis start-experiment --experiment-template-id $templateId`

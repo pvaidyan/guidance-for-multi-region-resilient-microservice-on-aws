@@ -1116,7 +1116,7 @@ Resources:
     Type: AWS::CloudWatch::Dashboard
     Properties:
       DashboardName: !Sub Synthetics-HealthCheck-Dashboard-${AWS::Region}${Env}
-      DashboardBody: '{
+      DashboardBody: !Sub '{
     "widgets": [
         {
             "type": "metric",
@@ -1135,7 +1135,7 @@ Resources:
                 "title": "Canaries",
                 "stat": "SampleCount",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1156,7 +1156,7 @@ Resources:
                 "view": "singleValue",
                 "title": "Duration",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1177,7 +1177,7 @@ Resources:
                 "view": "singleValue",
                 "title": "SuccessPercent",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1198,7 +1198,7 @@ Resources:
                 "view": "singleValue",
                 "title": "Failed",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1220,7 +1220,7 @@ Resources:
                 "title": "Errors (4xx)",
                 "stat": "Sum",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1242,7 +1242,7 @@ Resources:
                 "title": "Faults (5xx)",
                 "stat": "Sum",
                 "sparkline": true,
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1265,7 +1265,7 @@ Resources:
                 "view": "pie",
                 "title": "Status",
                 "stat": "SampleCount",
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1291,7 +1291,7 @@ Resources:
                         "min": 0
                     }
                 },
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1313,7 +1313,7 @@ Resources:
                 },
                 "title": "Duration",
                 "stat": "p90",
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1333,7 +1333,7 @@ Resources:
                     "position": "bottom"
                 },
                 "title": "Canary duration",
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1357,7 +1357,7 @@ Resources:
                         "min": 0
                     }
                 },
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC",
                 "title": ""
@@ -1378,7 +1378,7 @@ Resources:
                 },
                 "title": "Failed canary runs",
                 "stat": "Sum",
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC"
             }
@@ -1407,7 +1407,7 @@ Resources:
                 "legend": {
                     "position": "right"
                 },
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC",
                 "title": "Duration: Maximum"
@@ -1443,10 +1443,259 @@ Resources:
                         "min": 0
                     }
                 },
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "liveData": false,
                 "timezone": "UTC",
                 "title": "SuccessPercent: Average"
+            }
+        }
+    ]
+}'
+
+  CanariesDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub Canaries-Dashboard-${AWS::Region}${Env}
+      DashboardBody: !Sub '{
+    "widgets": [
+        {
+            "height": 6,
+            "width": 6,
+            "y": 0,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "SuccessPercent", "CanaryName", "global-cart" ],
+                    [ "...", "lcl-rgnl-cart" ],
+                    [ "...", "rmt-rgnl-cart" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Cart - Success - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 0,
+            "x": 6,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Duration", "CanaryName", "global-cart" ],
+                    [ "...", "lcl-rgnl-cart" ],
+                    [ "...", "rmt-rgnl-cart" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 60,
+                "title": "Cart - Duration - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 0,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "global-cart", { "region": "${AWS::Region}" } ],
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "lcl-rgnl-cart", { "region": "${AWS::Region}" } ],
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "rmt-rgnl-cart", { "region": "${AWS::Region}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Cart - Failures - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 6,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "SuccessPercent", "CanaryName", "global-catalog" ],
+                    [ "...", "lcl-rgnl-catalog" ],
+                    [ "...", "rmt-rgnl-catalog" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Catalog - Success - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 6,
+            "x": 6,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Duration", "CanaryName", "global-catalog" ],
+                    [ "...", "lcl-rgnl-catalog" ],
+                    [ "...", "rmt-rgnl-catalog" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 60,
+                "title": "Catalog - Duration - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 6,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "global-catalog", { "region": "${AWS::Region}", "label": "global-catalog" } ],
+                    [ "...", "lcl-rgnl-catalog", { "region": "${AWS::Region}", "label": "lcl-rgnl-catalog" } ],
+                    [ "...", "rmt-rgnl-catalog", { "region": "${AWS::Region}", "label": "rmt-rgnl-catalog" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Catalog - Failures - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 12,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "SuccessPercent", "CanaryName", "global-home" ],
+                    [ "...", "lcl-rgnl-home" ],
+                    [ "...", "rmt-rgnl-home" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Home - Success - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 12,
+            "x": 6,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Duration", "CanaryName", "global-home" ],
+                    [ "...", "lcl-rgnl-home" ],
+                    [ "...", "rmt-rgnl-home" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 60,
+                "title": "Home - Duration - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 12,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "global-home", { "region": "${AWS::Region}", "label": "global-home" } ],
+                    [ "...", "lcl-rgnl-home", { "region": "${AWS::Region}", "label": "lcl-rgnl-home" } ],
+                    [ "...", "rmt-rgnl-home", { "region": "${AWS::Region}", "label": "rmt-rgnl-home" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Home - Failures - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 18,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "SuccessPercent", "CanaryName", "global-orders", { "region": "${AWS::Region}" } ],
+                    [ "...", "lcl-rgnl-orders", { "region": "${AWS::Region}" } ],
+                    [ "...", "rmt-rgnl-orders", { "region": "${AWS::Region}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Orders - Success - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 18,
+            "x": 6,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Duration", "CanaryName", "global-orders", { "region": "${AWS::Region}" } ],
+                    [ "...", "lcl-rgnl-orders", { "region": "${AWS::Region}" } ],
+                    [ "...", "rmt-rgnl-orders", { "region": "${AWS::Region}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 60,
+                "title": "Orders - Duration - ${AWS::Region}"
+            }
+        },
+        {
+            "height": 6,
+            "width": 6,
+            "y": 18,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "CloudWatchSynthetics", "Failed", "CanaryName", "global-orders", { "region": "${AWS::Region}", "label": "global-orders" } ],
+                    [ "...", "lcl-rgnl-orders", { "region": "${AWS::Region}", "label": "lcl-rgnl-orders" } ],
+                    [ "...", "rmt-rgnl-orders", { "region": "${AWS::Region}", "label": "rmt-rgnl-orders" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "stat": "p99",
+                "period": 300,
+                "title": "Orders - Failures - ${AWS::Region}"
             }
         }
     ]
