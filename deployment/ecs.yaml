@@ -35,11 +35,11 @@ Resources:
   OrdersMqBroker:
     Type: "AWS::AmazonMQ::Broker"
     Properties:
-      AutoMinorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
       BrokerName: !Sub "retail-store-arordersmq-broker${Env}"
       DeploymentMode: "SINGLE_INSTANCE"
       EngineType: "RabbitMQ"
-      EngineVersion: "3.10.10"
+      EngineVersion: "3.13"
       HostInstanceType: "mq.t3.micro"
       PubliclyAccessible: false
       StorageType: "ebs"
@@ -282,6 +282,14 @@ Resources:
   
   #Secrets
 
+  CWAgentConfSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub 'CWAgentConf${Env}'
+      Type: String
+      Value: !Sub "{\"traces\": {\"traces_collected\": {\"application_signals\": {}}},\"logs\": {\"metrics_collected\": {\"application_signals\": {}}}}"
+      Description: "CW Agent Config"
+
   MqSecret:
     DependsOn: 
       - MqPassword 
@@ -411,6 +419,11 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CWAgentConf${Env}'
+                Action:
+                  - "ssm:GetParameters"
+                  - "ssm:DescribeParameters"
+              - Effect: "Allow"
                 Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
                 Action: 
                   - "logs:CreateLogStream"
@@ -435,6 +448,8 @@ Resources:
   CartsTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
+      Volumes: 
+        - Name:  opentelemetry-auto-instrumentation
       ExecutionRoleArn: !Ref CartsTaskExecutionRole
       TaskRoleArn: !Ref CartsTaskExecutionRole
       NetworkMode: awsvpc 
@@ -448,6 +463,10 @@ Resources:
       ContainerDefinitions:
         -
           Name: "carts"
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
           PortMappings:
             - ContainerPort: 8080
               Name: carts
@@ -461,12 +480,55 @@ Resources:
               Value: !Sub '{{resolve:secretsmanager:cartsTable${Env}Secret}}'
             - Name: SPRING_PROFILES_ACTIVE
               Value: dynamodb
+            - Name: OTEL_RESOURCE_ATTRIBUTES
+              Value: !Sub "service.name=carts,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
+              Value: true
+            - Name: OTEL_EXPORTER_OTLP_PROTOCOL
+              Value: http/protobuf
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT
+              Value: http://localhost:4316/v1/metrics
+            - Name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              Value: http://localhost:4316/v1/traces
+            - Name: OTEL_TRACES_SAMPLER
+              Value: xray
+            - Name: OTEL_PROPAGATORS
+              Value: "tracecontext,baggage,b3,xray"
+            - Name: JAVA_TOOL_OPTIONS
+              Value: " -javaagent:/otel-auto-instrumentation/javaagent.jar"
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Sub ${AWS::Region}
               awslogs-stream-prefix: ecs  
+        -
+          Name: ecs-cwagent
+          Image: public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest
+          Essential: true
+          Secrets: 
+            - Name: CW_CONFIG_CONTENT
+              ValueFrom: !Ref CWAgentConfSSM
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/ecs-cwagent
+              awslogs-create-group: true
+              awslogs-region: !Sub ${AWS::Region}
+              awslogs-stream-prefix: ecs
+        -
+          Name: init
+          Image: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.5
+          Essential: false
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
+          Command: 
+            - cp
+            - /javaagent.jar
+            - /otel-auto-instrumentation/javaagent.jar
+
   CartsService:
     Type: AWS::ECS::Service
     Properties:
@@ -518,6 +580,11 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CWAgentConf${Env}'
+                Action:
+                  - "ssm:GetParameters"
+                  - "ssm:DescribeParameters"
+              - Effect: "Allow"
                 Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
                 Action: 
                   - "logs:CreateLogStream"
@@ -544,6 +611,8 @@ Resources:
   OrdersTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
+      Volumes: 
+        - Name:  opentelemetry-auto-instrumentation
       ExecutionRoleArn: !Ref OrdersTaskExecutionRole
       TaskRoleArn: !Ref OrdersTaskExecutionRole
       NetworkMode: awsvpc 
@@ -556,7 +625,37 @@ Resources:
         OperatingSystemFamily: LINUX
       ContainerDefinitions:
         -
+          Name: ecs-cwagent
+          Image: public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest
+          Essential: true
+          Secrets: 
+            - Name: CW_CONFIG_CONTENT
+              ValueFrom: !Ref CWAgentConfSSM
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/ecs-cwagent
+              awslogs-create-group: true
+              awslogs-region: !Sub ${AWS::Region}
+              awslogs-stream-prefix: ecs
+        -
+          Name: init
+          Image: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.5
+          Essential: false
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
+          Command: 
+            - cp
+            - javaagent.jar
+            - otel-auto-instrumentation/javaagent.jar
+        -
           Name: "orders"
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
           PortMappings:
             - ContainerPort: 8080
               AppProtocol: http
@@ -568,6 +667,22 @@ Resources:
           Environment:
             - Name: SPRING_PROFILES_ACTIVE
               Value: mysql,rabbitmq
+            - Name: OTEL_RESOURCE_ATTRIBUTES
+              Value: !Sub "service.name=orders,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
+              Value: true
+            - Name: OTEL_EXPORTER_OTLP_PROTOCOL
+              Value: http/protobuf
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT
+              Value: http://localhost:4316/v1/metrics
+            - Name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              Value: http://localhost:4316/v1/traces
+            - Name: OTEL_TRACES_SAMPLER
+              Value: xray
+            - Name: OTEL_PROPAGATORS
+              Value: "tracecontext,baggage,b3,xray"
+            - Name: JAVA_TOOL_OPTIONS
+              Value: " -javaagent:/otel-auto-instrumentation/javaagent.jar"
           Secrets:
             -
               Name: "SPRING_DATASOURCE_WRITER_URL"
@@ -848,9 +963,21 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ecs 
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CWAgentConf${Env}'
+                Action:
+                  - "ssm:GetParameters"
+                  - "ssm:DescribeParameters"
   CheckoutTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
+      Volumes: 
+        - Name:  opentelemetry-auto-instrumentation-node
       ExecutionRoleArn: !Ref CheckoutTaskExecutionRole
       TaskRoleArn: !Ref CheckoutTaskExecutionRole
       NetworkMode: awsvpc 
@@ -864,6 +991,10 @@ Resources:
       ContainerDefinitions:
         -
           Name: "checkout"
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation-node
+              ContainerPath: /otel-auto-instrumentation-node
+              ReadOnly: false
           PortMappings:
             - ContainerPort: 8080
               Name: checkout
@@ -873,18 +1004,59 @@ Resources:
           MemoryReservation: 50
           Essential: true
           Environment:
-            - 
-              Name: "ENDPOINTS_ORDERS"
+            - Name: OTEL_RESOURCE_ATTRIBUTES
+              Value: !Sub "service.name=checkout,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+            - Name: "ENDPOINTS_ORDERS"
               Value: http://orders:8080
-            - 
-              Name: "REDIS_URL"
+            - Name: "REDIS_URL"
               Value: !Sub "redis://${CheckoutEcCluster.RedisEndpoint.Address}:${CheckoutEcCluster.RedisEndpoint.Port}"
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
+              Value: true
+            - Name: OTEL_EXPORTER_OTLP_PROTOCOL
+              Value: http/protobuf
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT
+              Value: http://localhost:4316/v1/metrics
+            - Name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              Value: http://localhost:4316/v1/traces
+            - Name: OTEL_TRACES_SAMPLER
+              Value: xray
+            - Name: OTEL_PROPAGATORS
+              Value: "xray"
+            - Name: NODE_OPTIONS
+              Value: "--require /otel-auto-instrumentation-node/autoinstrumentation.js"
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Sub ${AWS::Region}
               awslogs-stream-prefix: ecs  
+        -
+          Name: ecs-cwagent
+          Image: public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest
+          Essential: true
+          Secrets: 
+            - Name: CW_CONFIG_CONTENT
+              ValueFrom: !Ref CWAgentConfSSM
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/ecs-cwagent
+              awslogs-create-group: true
+              awslogs-region: !Sub ${AWS::Region}
+              awslogs-stream-prefix: ecs
+        -
+          Name: init
+          Image: public.ecr.aws/aws-observability/adot-autoinstrumentation-node:v0.3.0
+          Essential: false
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation-node
+              ContainerPath: /otel-auto-instrumentation-node
+              ReadOnly: false
+          Command: 
+            - cp
+            - -a
+            - /autoinstrumentation/.
+            - /otel-auto-instrumentation-node
   CheckoutService:
     Type: AWS::ECS::Service
     DependsOn:
@@ -924,19 +1096,30 @@ Resources:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
-          -
-            Effect: "Allow"
+          - Effect: "Allow"
             Principal:
               Service: 
                 - "ecs-tasks.amazonaws.com"
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ecs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: "Allow"
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CWAgentConf${Env}'
+              Action:
+                - "ssm:GetParameters"
+                - "ssm:DescribeParameters"
   UiTaskDefinition:
     DependsOn:
       - CatalogService
     Type:  AWS::ECS::TaskDefinition
     Properties:
+      Volumes: 
+        - Name:  opentelemetry-auto-instrumentation
       ExecutionRoleArn: !Ref UiTaskExecutionRole
       TaskRoleArn: !Ref UiTaskExecutionRole
       NetworkMode: awsvpc 
@@ -950,6 +1133,10 @@ Resources:
       ContainerDefinitions:
         -
           Name: "ui"
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
           PortMappings:
             - ContainerPort: 8080
               Name: ui
@@ -959,27 +1146,64 @@ Resources:
           MemoryReservation: 50
           Essential: true
           Environment:
-            - 
-              Name: "ENDPOINTS_CATALOG"
-              Value: !Sub http://catalog:8080
-            - 
-              Name: "ENDPOINTS_CARTS"
-              Value: !Sub http://carts:8080
-            - 
-              Name: "ENDPOINTS_CHECKOUT"
-              Value: !Sub http://checkout:8080
-            - 
-              Name: "ENDPOINTS_ORDERS"
-              Value: !Sub http://orders:8080
-            - 
-              Name: "ENDPOINTS_ASSETS"
-              Value: !Sub http://assets:8080   
+            - Name: OTEL_RESOURCE_ATTRIBUTES
+              Value: !Sub "service.name=ui,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
+              Value: true
+            - Name: OTEL_EXPORTER_OTLP_PROTOCOL
+              Value: http/protobuf
+            - Name: OTEL_AWS_APPLICATION_SIGNALS_EXPORTER_ENDPOINT
+              Value: http://localhost:4316/v1/metrics
+            - Name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              Value: http://localhost:4316/v1/traces
+            - Name: OTEL_TRACES_SAMPLER
+              Value: xray
+            - Name: OTEL_PROPAGATORS
+              Value: "tracecontext,baggage,b3,xray"
+            - Name: JAVA_TOOL_OPTIONS
+              Value: " -javaagent:/otel-auto-instrumentation/javaagent.jar" 
+            - Name: "ENDPOINTS_CATALOG"
+              Value: http://catalog:8080
+            - Name: "ENDPOINTS_CARTS"
+              Value: http://carts:8080
+            - Name: "ENDPOINTS_CHECKOUT"
+              Value: http://checkout:8080
+            - Name: "ENDPOINTS_ORDERS"
+              Value: http://orders:8080
+            - Name: "ENDPOINTS_ASSETS"
+              Value: http://assets:8080   
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Sub ${AWS::Region}
               awslogs-stream-prefix: ecs  
+        -
+          Name: ecs-cwagent
+          Image: public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest
+          Essential: true
+          Secrets: 
+            - Name: CW_CONFIG_CONTENT
+              ValueFrom: !Ref CWAgentConfSSM
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/ecs-cwagent
+              awslogs-create-group: true
+              awslogs-region: !Sub ${AWS::Region}
+              awslogs-stream-prefix: ecs
+        -
+          Name: init
+          Image: public.ecr.aws/aws-observability/adot-autoinstrumentation-java:v1.32.5
+          Essential: false
+          MountPoints: 
+            - SourceVolume: opentelemetry-auto-instrumentation
+              ContainerPath: /otel-auto-instrumentation
+              ReadOnly: false
+          Command: 
+            - cp
+            - /javaagent.jar
+            - /otel-auto-instrumentation/javaagent.jar
   UiService:
     Type: AWS::ECS::Service
     DependsOn:

@@ -19,6 +19,10 @@ DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
 ####
 deploy-primary-only: primary_only_infrastructure primary_ecs
+	@echo "Deploy the Synthetic Canaries in ${PRIMARY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} PrimaryOnly=true --capabilities CAPABILITY_IAM --s3-bucket $(result)
 
 primary_only_infrastructure:
 	@echo "Verifying if the AWSServiceRoleForECS exists; if not; this will be created for you..."
@@ -32,7 +36,7 @@ primary_only_infrastructure:
 
 	@echo "Deploy Infrastructure resources in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV}
+	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV} PrimaryOnly=true
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \

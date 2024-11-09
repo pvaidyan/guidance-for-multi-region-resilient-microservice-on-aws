@@ -58,9 +58,11 @@ Conditions:
   isStandby: !Equals
     - !Ref AWS::Region
     - us-west-2
-  isPrimaryOnly: !Equals
-    - !Ref PrimaryOnly
-    - true
+  notPrimaryOnly: !Not
+    - !Equals
+      - !Ref PrimaryOnly
+      - true
+
 Resources:
   #VPC
   # Vpc:
@@ -85,6 +87,7 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref natGW1
   prvRoutePeer:
+    Condition: notPrimaryOnly
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable

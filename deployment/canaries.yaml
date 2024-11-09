@@ -9,6 +9,15 @@ Parameters:
   RemoteRegion:
     Type: String
     Description: The alternate AWS Region...not this one that the stack is in
+  PrimaryOnly:
+    Type: String
+    Default: false
+    
+Conditions:
+  notPrimaryOnly: !Not 
+    - !Equals
+      - !Ref PrimaryOnly
+      - true
 
 Resources:
   # Canaries
@@ -309,6 +318,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   remoteSyntheticsCanaryHome:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub rmt-rgnl-home${Env}
@@ -383,6 +393,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   remoteSyntheticsCanaryCart:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub rmt-rgnl-cart${Env}
@@ -457,6 +468,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   remoteSyntheticsCanaryCatalog:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub rmt-rgnl-catalog${Env}
@@ -531,6 +543,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   remoteSyntheticsCanaryOrders:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub rmt-rgnl-orders${Env}
@@ -605,6 +618,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   globalSyntheticsCanaryHome:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub global-home${Env}
@@ -679,6 +693,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   globalSyntheticsCanaryCart:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub global-cart${Env}
@@ -753,6 +768,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   globalSyntheticsCanaryCatalog:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub global-catalog${Env}
@@ -827,6 +843,7 @@ Resources:
       StartCanaryAfterCreation: true
 
   globalSyntheticsCanaryOrders:
+    Condition: notPrimaryOnly
     Type: 'AWS::Synthetics::Canary'
     Properties:
       Name: !Sub global-orders${Env}
@@ -930,6 +947,7 @@ Resources:
       CanaryName: !Ref localSyntheticsCanaryOrders
 
   cleanupRemoteHomeCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -937,6 +955,7 @@ Resources:
       CanaryName: !Ref remoteSyntheticsCanaryHome
 
   cleanupRemoteCatalogCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -944,6 +963,7 @@ Resources:
       CanaryName: !Ref remoteSyntheticsCanaryCatalog
 
   cleanupRemoteCartCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -951,6 +971,7 @@ Resources:
       CanaryName: !Ref remoteSyntheticsCanaryCart
 
   cleanupRemoteOrdersCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -958,6 +979,7 @@ Resources:
       CanaryName: !Ref remoteSyntheticsCanaryOrders
 
   cleanupGlobalHomeCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -965,6 +987,7 @@ Resources:
       CanaryName: !Ref globalSyntheticsCanaryHome
 
   cleanupGlobalCatalogCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -972,6 +995,7 @@ Resources:
       CanaryName: !Ref globalSyntheticsCanaryCatalog
 
   cleanupGlobalCartCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
@@ -979,6 +1003,7 @@ Resources:
       CanaryName: !Ref globalSyntheticsCanaryCart
 
   cleanupGlobalOrdersCanaryStackOnDelete:
+    Condition: notPrimaryOnly
     Type: 'Custom::cleanCanaryStack'
     Properties:
       ServiceToken: !GetAtt CleanCanaryStackLambda.Arn
