@@ -368,6 +368,9 @@ Resources:
       -
         Key: load_balancing.algorithm.anomaly_mitigation
         Value: 'on'
+      -
+        Key: deregistration_delay.timeout_seconds
+        Value: '5'
       HealthCheckEnabled: true
       HealthCheckPath: '/actuator'
       Port: 8080
@@ -481,7 +484,7 @@ Resources:
             - Name: SPRING_PROFILES_ACTIVE
               Value: dynamodb
             - Name: OTEL_RESOURCE_ATTRIBUTES
-              Value: !Sub "service.name=carts,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+              Value: !Sub "service.name=carts${Env},service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
             - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
               Value: true
             - Name: OTEL_EXPORTER_OTLP_PROTOCOL
@@ -537,7 +540,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref CartsTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -668,7 +671,7 @@ Resources:
             - Name: SPRING_PROFILES_ACTIVE
               Value: mysql,rabbitmq
             - Name: OTEL_RESOURCE_ATTRIBUTES
-              Value: !Sub "service.name=orders,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+              Value: !Sub "service.name=orders${Env},service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
             - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
               Value: true
             - Name: OTEL_EXPORTER_OTLP_PROTOCOL
@@ -725,7 +728,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref OrdersTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -800,7 +803,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref AssetsTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -920,7 +923,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref CatalogTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -1005,7 +1008,7 @@ Resources:
           Essential: true
           Environment:
             - Name: OTEL_RESOURCE_ATTRIBUTES
-              Value: !Sub "service.name=checkout,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+              Value: !Sub "service.name=checkout${Env},service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
             - Name: "ENDPOINTS_ORDERS"
               Value: http://orders:8080
             - Name: "REDIS_URL"
@@ -1067,7 +1070,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref CheckoutTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
@@ -1147,7 +1150,7 @@ Resources:
           Essential: true
           Environment:
             - Name: OTEL_RESOURCE_ATTRIBUTES
-              Value: !Sub "service.name=ui,service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
+              Value: !Sub "service.name=ui${Env},service.namespace=retail-store-ar,aws.log.group.names=${LogGroup}"
             - Name: OTEL_AWS_APPLICATION_SIGNALS_ENABLED
               Value: true
             - Name: OTEL_EXPORTER_OTLP_PROTOCOL
@@ -1222,7 +1225,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
       Cluster:  !Ref EcsCluster
-      DesiredCount: 3
+      DesiredCount: 1
       TaskDefinition: !Ref UiTaskDefinition
       ServiceConnectConfiguration:
         Enabled: true
