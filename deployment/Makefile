@@ -17,28 +17,23 @@ AWS_PAGER:=''
 MAKE=/usr/bin/make
 DOCKER_BUILDKIT=0
 COMPOSE_DOCKER_CLI_BUILD=0
+
+ifeq ($(PRIMARY_ONLY),true)
+PRIMARY_ONLY=true
+else
+PRIMARY_ONLY=false
+endif
 ####
-deploy-primary-only: primary_only_infrastructure primary_scale_apps
 
-primary_only_infrastructure:
-	@echo "Verifying if the AWSServiceRoleForECS exists; if not; this will be created for you..."
-	$(eval result:=$(shell aws iam list-roles --query "length(Roles[?RoleName=='AWSServiceRoleForECS'])"))
-	@if [ "$(result)" -eq "0" ]; then \
-		aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --no-cli-pager; \
-	fi
-	@echo "Deploying VPC Stack in ${PRIMARY_REGION}"
-	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} PrimaryOnly=true
-
-	@echo "Deploy Infrastructure resources in ${PRIMARY_REGION}"
-	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV} PrimaryOnly=true
-
-deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs primary_scale_apps standby_scale_apps  global_routing \
+deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
 	secrets-rotation chaos-engineering
 
-deploy-ecs-primary: test-creds primary_infrastructure primary_ecs
+deploy-primary: test-creds create-peer primary_infrastructure primary_ecs client-primary
+	@echo "Deploy the Synthetic Canaries in ${PRIMARY_REGION}"
+	$(eval result:=$(shell aws ssm get-parameter --name canaryBucketName$(ENV) --region $(PRIMARY_REGION) --query "Parameter.Value" --output text ))
+	@aws cloudformation deploy --region ${PRIMARY_REGION} --template ./canaries.yaml \
+	--stack-name canaries${ENV} --parameter-overrides Env=${ENV} RemoteRegion=${STANDBY_REGION} PrimaryOnly=true --capabilities CAPABILITY_IAM --s3-bucket $(result)
 
 deploy: deploy-all
 	@echo "*** Deployment Outputs ****"
@@ -65,12 +60,17 @@ create-peer:
 	@if [ "$(result)" -eq "0" ]; then \
 		aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com --no-cli-pager; \
 	fi
+
 	@echo "Deploying VPC Stack in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
-	@echo "Deploying VPC Stack in ${STANDBY_REGION}"
-	@aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
-	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} PrimaryOnly=true
+	
+	@if [ "$(PRIMARY_ONLY)" = "false" ];then \
+		aws cloudformation deploy --template ./regionalVpc.yaml --region ${STANDBY_REGION} \
+	--stack-name baseVpc${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV}; \
+	fi
+
+	@echo "create-peer done"
 
 ecr-login:
 	@echo "Verifying ECR Login in ${PRIMARY_REGION}"
@@ -84,7 +84,7 @@ build-catalog-primary: primary_infrastructure ecr-login
 	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 
-build-catalog-standby: standby_infrastructure ecr-login
+build-catalog-standby: standby_infrastructure ecr-login build-catalog-primary
 	@echo "Push Catalog service Image to ECR in ${STANDBY_REGION}"
 	docker tag catalog${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/catalog${ENV}:${TAG}
@@ -95,7 +95,7 @@ build-checkout-primary: primary_infrastructure ecr-login
 	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 
-build-checkout-standby: standby_infrastructure ecr-login
+build-checkout-standby: standby_infrastructure ecr-login build-checkout-primary
 	@echo "Push Checkout service Image to ECR in ${STANDBY_REGION}"
 	docker tag checkout${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/checkout${ENV}:${TAG}
@@ -106,7 +106,7 @@ build-ui-primary: primary_infrastructure ecr-login
 	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 
-build-ui-standby: standby_infrastructure ecr-login
+build-ui-standby: standby_infrastructure ecr-login build-ui-primary
 	@echo "Push UI service Image to ECR in ${STANDBY_REGION}"
 	docker tag ui${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/ui${ENV}:${TAG}
@@ -117,7 +117,7 @@ build-carts-primary: primary_infrastructure ecr-login
 	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 
-build-carts-standby: standby_infrastructure ecr-login
+build-carts-standby: standby_infrastructure ecr-login build-carts-primary
 	@echo "Push Carts service Image to ECR in ${STANDBY_REGION}"
 	docker tag carts${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/carts${ENV}:${TAG}
@@ -128,7 +128,7 @@ build-assets-primary: primary_infrastructure ecr-login
 	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
-build-assets-standby: standby_infrastructure ecr-login
+build-assets-standby: standby_infrastructure ecr-login build-assets-primary
 	@echo "Push Assets service Image to ECR in ${STANDBY_REGION}"
 	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/assets${ENV}:${TAG}
@@ -139,35 +139,20 @@ build-orders-primary: primary_infrastructure ecr-login
 	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
-build-orders-standby: standby_infrastructure ecr-login
+build-orders-standby: standby_infrastructure ecr-login build-orders-primary
 	@echo "Push Orders service Image to ECR in ${STANDBY_REGION}"
 	docker tag orders${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${STANDBY_REGION}.amazonaws.com/orders${ENV}:${TAG}
 
-primary_infrastructure: 
+primary_infrastructure: create-peer
 	@echo "Deploy Infrastructure resources in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./regionalBaseInfra.yaml --region ${PRIMARY_REGION} \
-	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV}
+	--stack-name baseInfra${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} KmsKey=retail-store-ar${ENV} PrimaryOnly=${PRIMARY_ONLY}
 
 primary_ecs: build-catalog-primary build-checkout-primary build-ui-primary build-carts-primary build-assets-primary build-orders-primary primary_region_catalog-db primary_region_orders-db carts-db
 	@echo "Deploy ECS Services in ${PRIMARY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${PRIMARY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG} KmsKey=retail-store-ar${ENV}
-
-primary_scale_apps:	primary_ecs
-	$(eval ecscluster = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='EcsCluster'].PhysicalResourceId" --output text))
-	$(eval uiservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='UiService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(uiservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
-	$(eval cartsservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CartsService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(cartsservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
-	$(eval assetsservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='AssetsService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(assetsservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
-	$(eval catalogservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CatalogService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(catalogservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
-	$(eval checkoutservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CheckoutService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(checkoutservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
-	$(eval ordersservice = $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${PRIMARY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='OrdersService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(ordersservice) --region ${PRIMARY_REGION} --desired-count 3 --no-cli-pager
 
 standby_infrastructure: create-peer
 	@echo "Deploy Infrastructure resources in ${STANDBY_REGION}"
@@ -178,22 +163,6 @@ standby_ecs: build-catalog-standby build-checkout-standby build-ui-standby build
 	@echo "Deploy ECS Services in ${STANDBY_REGION}"
 	@aws cloudformation deploy --template ./ecs.yaml --region ${STANDBY_REGION} \
 	--stack-name apps${ENV} --capabilities CAPABILITY_IAM --parameter-overrides Env=${ENV} Tag=${TAG} KmsKey=retail-store-ar${ENV}
-
-standby_scale_apps:	standby_ecs
-#	work-around for ECS Service creation timeout
-	$(eval ecscluster := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='EcsCluster'].PhysicalResourceId" --output text))
-	$(eval uiservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='UiService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(uiservice) --region ${STANDBY_REGION} --desired-count 3 --no-paginate
-	$(eval cartsservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CartsService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(cartsservice) --region ${STANDBY_REGION} --desired-count 3 --no-paginate
-	$(eval assetsservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='AssetsService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(assetsservice) --region ${STANDBY_REGION} --desired-count 3 --no-paginate
-	$(eval catalogservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CatalogService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(catalogservice) --region ${STANDBY_REGION} --desired-count 3 --no-paginate
-	$(eval checkoutservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='CheckoutService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(checkoutservice) --region ${STANDBY_REGION} --desired-count 3  --no-paginate
-	$(eval ordersservice := $(shell aws cloudformation list-stack-resources --stack-name apps${ENV} --region ${STANDBY_REGION} --query "StackResourceSummaries[?LogicalResourceId=='OrdersService'].PhysicalResourceId" --output text))
-	@aws ecs update-service --cluster $(ecscluster) --service $(ordersservice) --region ${STANDBY_REGION} --desired-count 3 --no-paginate
 
 global_routing: standby_ecs primary_ecs
 	@echo "Deploy the Global Routing layer"

@@ -533,7 +533,7 @@ Resources:
     Type: 'AWS::Logs::LogGroup'
     Properties:
       KmsKeyId: !GetAtt FISLogGroupKey.Arn
-      LogGroupName: chaos-experiment-logs
+      LogGroupName: !Sub chaos-experiment-logs${Env}
       RetentionInDays: 7
 
 Outputs:
