@@ -27,7 +27,7 @@ endif
 
 deploy-all: test-creds create-peer primary_infrastructure primary_ecs standby_infrastructure standby_ecs global_routing \
 	canaries_primary canaries_standby failover_primary failover_standby client-primary client-standby restore-reconciliation monitoring \
-	secrets-rotation chaos-engineering
+	secrets-rotation chaos-engineering restart-ecs-services
 
 deploy-primary: test-creds create-peer primary_infrastructure primary_ecs client-primary
 	@echo "Deploy the Synthetic Canaries in ${PRIMARY_REGION}"
@@ -124,7 +124,7 @@ build-carts-standby: standby_infrastructure ecr-login build-carts-primary
 
 build-assets-primary: primary_infrastructure ecr-login
 	@echo "Build Assets service image and Push to ECR in ${PRIMARY_REGION}"
-	@cd ../source/assets/; docker build -t assets${ENV}:${TAG} .
+	@cd ../source/assets/; docker build --platform linux/amd64 -t assets${ENV}:${TAG} .
 	docker tag assets${ENV}:${TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 	docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${PRIMARY_REGION}.amazonaws.com/assets${ENV}:${TAG}
 
@@ -270,7 +270,7 @@ secrets-rotation: primary_region_orders-db primary_region_catalog-db
 
 restart-ecs-services:
 	@echo "Restarting ECS Services"
-	@if [ ${ENV} = "" ]; then \
+	@if [ -z "${ENV}" ]; then \
 		./restart-services.sh --services catalog,orders; \
 	else \
 		./restart-services.sh --env ${ENV} --services catalog,orders; \

@@ -114,7 +114,7 @@ Verify deployment outputs after a successful deployment. If you are deploying th
 
 Canaries:
 * https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#synthetics:canary/list
-* https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-west-2#synthetics:canary/list
+* https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#synthetics:canary/list
 
 Clients for in-VPC Browser:
 * https://us-east-1.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=us-east-1

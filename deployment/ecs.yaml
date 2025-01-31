@@ -416,6 +416,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ecs 
           PolicyDocument: 
@@ -577,6 +578,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ecs 
           PolicyDocument: 
@@ -765,6 +767,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
   AssetsTaskDefinition:
     Type:  AWS::ECS::TaskDefinition
     Properties:
@@ -840,6 +843,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ecs 
           PolicyDocument: 
@@ -966,6 +970,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ecs 
           PolicyDocument: 
@@ -1106,6 +1111,7 @@ Resources:
             Action: "sts:AssumeRole"
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ecs
           PolicyDocument:

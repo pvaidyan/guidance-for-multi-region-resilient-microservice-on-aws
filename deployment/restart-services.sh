@@ -54,7 +54,7 @@ force_new_deployment() {
   aws ecs update-service \
     --cluster "$cluster_arn" \
     --service "$service_name" \
-    --force-new-deployment
+    --force-new-deployment \
     --no-cli-pager
 
   echo "New deployment forced for service '$service_name' in cluster $cluster_arn."
