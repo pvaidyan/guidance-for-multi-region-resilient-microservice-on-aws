@@ -107,6 +107,149 @@ Resources:
 
   ExperimentRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover route tables."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:route-table/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover VPCs."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:vpc/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover network interfaces."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:network-interface/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover prefix lists."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:prefix-list/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover subnets."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:subnet/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover security groups."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:security-group/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover all resources."
+            appliesTo: ["Resource::*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover VPC endpoints."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:vpc-endpoint/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover transit gateway route tables."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:transit-gateway-route-table/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover transit gateway attachments."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:transit-gateway-attachment/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover S3 buckets."
+            appliesTo: ["Resource::arn:aws:s3:::*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover DynamoDB tables."
+            appliesTo: ["Resource::arn:aws:dynamodb:*:*:table/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover DynamoDB global tables."
+            appliesTo: ["Resource::arn:aws:dynamodb:*:*:global-table/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover KMS keys."
+            appliesTo: ["Resource::arn:aws:kms:*:*:key/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover network ACLs."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:network-acl/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover RDS clusters."
+            appliesTo: ["Resource::arn:aws:rds:*:*:cluster:*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover RDS databases."
+            appliesTo: ["Resource::arn:aws:rds:*:*:db:*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover ElastiCache replication groups."
+            appliesTo: ["Resource::arn:aws:elasticache:*:*:replicationgroup:*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover EC2 instances."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:instance/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover EBS volumes."
+            appliesTo: ["Resource::arn:aws:ec2:*:*:volume/*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage EC2 resources."
+            appliesTo: ["Action::ec2:*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage S3 resources."
+            appliesTo: ["Action::s3:*"]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage DynamoDB resources."
+            appliesTo: ["Action::dynamodb:*"]
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover route tables."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:route-table/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover VPCs."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:vpc/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover network interfaces."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:network-interface/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover prefix lists."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:prefix-list/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover subnets."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:subnet/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover security groups."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:security-group/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover all resources."
+            appliesTo: [ "Resource::*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover VPC endpoints."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:vpc-endpoint/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover transit gateway route tables."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:transit-gateway-route-table/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover transit gateway attachments."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:transit-gateway-attachment/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover S3 buckets."
+            appliesTo: [ "Resource::arn:aws:s3:::*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover DynamoDB tables."
+            appliesTo: [ "Resource::arn:aws:dynamodb:*:*:table/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover DynamoDB global tables."
+            appliesTo: [ "Resource::arn:aws:dynamodb:*:*:global-table/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover KMS keys."
+            appliesTo: [ "Resource::arn:aws:kms:*:*:key/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover network ACLs."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:network-acl/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover RDS clusters."
+            appliesTo: [ "Resource::arn:aws:rds:*:*:cluster:*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover RDS databases."
+            appliesTo: [ "Resource::arn:aws:rds:*:*:db:*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover ElastiCache replication groups."
+            appliesTo: [ "Resource::arn:aws:elasticache:*:*:replicationgroup:*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover EC2 instances."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:instance/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard permissions are required for FIS experiments to cover EBS volumes."
+            appliesTo: [ "Resource::arn:aws:ec2:*:*:volume/*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage EC2 resources."
+            appliesTo: [ "Action::ec2:*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage S3 resources."
+            appliesTo: [ "Action::s3:*" ]
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard actions are required for FIS experiments to manage DynamoDB resources."
+            appliesTo: [ "Action::dynamodb:*" ]
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -127,10 +270,14 @@ Resources:
               Condition:
                 StringEquals:
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity2
               Effect: Allow
               Action: 'ec2:CreateRouteTable'
               Resource: 'arn:aws:ec2:*:*:vpc/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity21
               Effect: Allow
               Action: 'ec2:CreateTags'
@@ -139,6 +286,7 @@ Resources:
                 StringEquals:
                   'ec2:CreateAction': CreateRouteTable
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity3
               Effect: Allow
               Action: 'ec2:CreateTags'
@@ -147,6 +295,7 @@ Resources:
                 StringEquals:
                   'ec2:CreateAction': CreateNetworkInterface
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity4
               Effect: Allow
               Action: 'ec2:CreateTags'
@@ -155,6 +304,7 @@ Resources:
                 StringEquals:
                   'ec2:CreateAction': CreateManagedPrefixList
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity5
               Effect: Allow
               Action: 'ec2:DeleteRouteTable'
@@ -164,6 +314,7 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity6
               Effect: Allow
               Action: 'ec2:CreateRoute'
@@ -171,6 +322,7 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity7
               Effect: Allow
               Action: 'ec2:CreateNetworkInterface'
@@ -178,12 +330,16 @@ Resources:
               Condition:
                 StringEquals:
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity8
               Effect: Allow
               Action: 'ec2:CreateNetworkInterface'
               Resource:
                 - 'arn:aws:ec2:*:*:subnet/*'
                 - 'arn:aws:ec2:*:*:security-group/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity9
               Effect: Allow
               Action: 'ec2:DeleteNetworkInterface'
@@ -191,6 +347,7 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity10
               Effect: Allow
               Action: 'ec2:CreateManagedPrefixList'
@@ -198,6 +355,7 @@ Resources:
               Condition:
                 StringEquals:
                   'aws:RequestTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity11
               Effect: Allow
               Action: 'ec2:DeleteManagedPrefixList'
@@ -205,6 +363,7 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity12
               Effect: Allow
               Action: 'ec2:ModifyManagedPrefixList'
@@ -212,6 +371,7 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity13
               Effect: Allow
               Action:
@@ -223,22 +383,34 @@ Resources:
                 - 'ec2:DescribeRouteTables'
                 - 'ec2:DescribeVpcEndpoints'
               Resource: '*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity14
               Effect: Allow
               Action: 'ec2:ReplaceRouteTableAssociation'
               Resource:
                 - 'arn:aws:ec2:*:*:subnet/*'
                 - 'arn:aws:ec2:*:*:route-table/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity15
               Effect: Allow
               Action: 'ec2:GetManagedPrefixListEntries'
               Resource: 'arn:aws:ec2:*:*:prefix-list/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity16
               Effect: Allow
               Action: 'ec2:AssociateRouteTable'
               Resource:
                 - 'arn:aws:ec2:*:*:subnet/*'
                 - 'arn:aws:ec2:*:*:route-table/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity17
               Effect: Allow
               Action: 'ec2:DisassociateRouteTable'
@@ -247,11 +419,15 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity18
               Effect: Allow
               Action: 'ec2:DisassociateRouteTable'
               Resource:
                 - 'arn:aws:ec2:*:*:subnet/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity19
               Effect: Allow
               Action: 'ec2:ModifyVpcEndpoint'
@@ -260,11 +436,15 @@ Resources:
               Condition:
                 StringEquals:
                   'ec2:ResourceTag/managedByFIS': 'true'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: RouteTableDisruptConnectivity20
               Effect: Allow
               Action: 'ec2:ModifyVpcEndpoint'
               Resource:
                 - 'arn:aws:ec2:*:*:vpc-endpoint/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: TransitGatewayDisruptConnectivity1
               Effect: Allow
               Action:
@@ -273,23 +453,35 @@ Resources:
               Resource:
                 - 'arn:aws:ec2:*:*:transit-gateway-route-table/*'
                 - 'arn:aws:ec2:*:*:transit-gateway-attachment/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: TransitGatewayDisruptConnectivity2
               Effect: Allow
               Action:
                 - 'ec2:DescribeTransitGatewayPeeringAttachments'
                 - 'ec2:DescribeTransitGatewayAttachments'
                 - 'ec2:DescribeTransitGateways'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
               Resource: '*'
             - Sid: S3CrossRegion1
               Effect: Allow
               Action:
                 - 's3:ListAllMyBuckets'
               Resource: '*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: S3CrossRegion2
               Effect: Allow
               Action:
                 - 'tag:GetResources'
               Resource: '*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: S3CrossRegion3
               Effect: Allow
               Action:
@@ -298,6 +490,7 @@ Resources:
               Condition:
                 StringLike:
                   's3:DestinationRegion': '*'
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: S3CrossRegion4
               Effect: Allow
               Action:
@@ -305,6 +498,8 @@ Resources:
                 - 's3:PutReplicationConfiguration'
               Resource: 'arn:aws:s3:::*'
               Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
                 BoolIfExists:
                   's3:isReplicationPauseRequest': 'true'
             - Sid: DdbCrossRegion1
@@ -312,6 +507,9 @@ Resources:
               Action:
                 - 'tag:GetResources'
               Resource: '*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: DdbCrossRegion2
               Effect: Allow
               Action:
@@ -320,6 +518,9 @@ Resources:
               Resource:
                 - 'arn:aws:dynamodb:*:*:table/*'
                 - 'arn:aws:dynamodb:*:*:global-table/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
             - Sid: DdbCrossRegion3
               Effect: Allow
               Action:
@@ -327,6 +528,9 @@ Resources:
                 - 'kms:GetKeyPolicy'
                 - 'kms:PutKeyPolicy'
               Resource: 'arn:aws:kms:*:*:key/*'
+              Condition:
+                StringEquals:
+                  'aws:ResourceAccount': !Ref AWS::AccountId
         - PolicyName: FISExperimentPolicy
           PolicyDocument:
             Version: '2012-10-17'

@@ -22,6 +22,17 @@ Parameters:
 Resources:
   LambdaExecutionRole:
     Type:  AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "The Lambda execution role requires broad permissions to interact with CloudWatch Logs, Route53 Recovery Control, and Secrets Manager for operational tasks."
+            appliesTo:
+              - "Resource::arn:aws:logs:*:<AWS::AccountId>:*"
+              - "Resource::arn:aws:route53-recovery-control::<AWS::AccountId>:cluster/*"
+              - "Resource::arn:aws:route53-recovery-control::<AWS::AccountId>:controlpanel/*"
+              - "Resource::arn:aws:route53-recovery-control::<AWS::AccountId>:controlpanel/*/routingcontrol/*"
+              - "Resource::arn:aws:secretsmanager:<AWS::Region>:<AWS::AccountId>:secret:*"
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -67,6 +78,11 @@ Resources:
                 Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*'
   AutomationRegionalFailoverFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-L1
+            reason: "Using python3.9 for compatibility reasons; upgrading the runtime is not feasible at this time."
     Properties:
       Layers:
         - !Sub arn:aws:lambda:${AWS::Region}:${PowerToolsLambdaLayerAccountId}:layer:AWSLambdaPowertoolsPythonV2:74
@@ -150,7 +166,7 @@ Resources:
               logger.info("dummy")
 
       Handler: index.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.12
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:

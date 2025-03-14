@@ -83,6 +83,11 @@ Resources:
       Value: !GetAtt AuroraMySqlComputeSecurityGroup.GroupId
   DBCredentialsSecret:
     Type: 'AWS::SecretsManager::Secret'
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is being rotated by an external stack using custom Lambda."
     Properties:
       KmsKeyId: !Ref KmsKey
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-UserCredentials${Env}'
@@ -131,6 +136,11 @@ Resources:
             Resource: '*'
   AuroraStorageEncryptionKeyArnSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is storing the resource ARN, and does not require any rotation"
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-StorageEncryptionKeyArn${Env}'
       Description: "KMS Key Arn for Aurora Storage Encryption"
@@ -146,6 +156,15 @@ Resources:
       GlobalClusterIdentifier: !Sub '${NamingPrefix}-${GlobalClusterIdentifier}${Env}'
       SourceDBClusterIdentifier: !Ref DBCluster
   DBCluster:
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-RDS10
+            reason: "The RDS instance or Aurora DB cluster does not have deletion protection enabled. - Demo application, so not enabling this"
+          - id: AwsSolutions-RDS11
+            reason: "The RDS instance or Aurora DB cluster uses the default endpoint port. Port obfuscation - Demo application, so not enabling this"
+          - id: AwsSolutions-RDS14
+            reason: "The RDS Aurora MySQL cluster does not have Backtrack enabled. - Demo application, so not enabling this"
     DependsOn:
       - SubnetGroup
       - DBIamRoleForMonitoring
@@ -227,6 +246,13 @@ Resources:
         - !Sub '{{resolve:ssm:Subnet3${Env}}}'
       DBSubnetGroupDescription: !Sub ${DatabaseName}-subnet-group
   DBIamRoleForMonitoring:
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM4
+            reason: "This role is used by RDS to push monitoring metrics. - Demo application, so using managed policy"
+            applies_to:
+              - Policy::arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -243,6 +269,11 @@ Resources:
     Type: "AWS::IAM::Role"
   DBIamRoleForMonitoringArnSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is storing the resource ARN, and does not require any rotation"
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}-MonitoringIAMRoleArn${Env}'
       Description: "Aurora DB Monitoring IAM Role Arn"
@@ -252,6 +283,11 @@ Resources:
         - Region: us-west-2
   GlobalDBName:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is storing the resource name, and does not require any rotation"
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${GlobalClusterIdentifier}${Env}'
       Description: !Sub 'GlobalClusterIdentifier for ${NamingPrefix}'
@@ -261,6 +297,11 @@ Resources:
         - Region: us-west-2
   DBClusterArn:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is storing the resource ARN, and does not require any rotation"
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-${GlobalClusterIdentifier}${Env}'
       Description: !Sub 'DBCluster Arn for ${NamingPrefix}'
@@ -270,6 +311,11 @@ Resources:
         - Region: us-west-2
   DBClusterIdentifier:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret is storing the resource name, and does not require any rotation"
     Properties:
       Name: !Sub 'mr-app/${NamingPrefix}-${AWS::Region}-DBClusterIdentifier${Env}'
       Description: !Sub 'DBClusterIdentifier for ${NamingPrefix}'
@@ -290,6 +336,11 @@ Resources:
           CidrIp: '0.0.0.0/0'
   UpdateSecretFunction:
     Type: 'AWS::Lambda::Function'
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-L1
+            reason: 'The non-container Lambda function is not configured to use the latest runtime version. Keeping this for compatibility reasons'
     Properties:
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -351,7 +402,7 @@ Resources:
           DB_NAME: !Ref DatabaseName
           SecretName: !Ref DBCredentialsSecret
           DBClusterIdentifier: !Ref DBCluster
-      Runtime: python3.10
+      Runtime: python3.12
       Timeout: 300
       VpcConfig:
         SubnetIds:
@@ -363,6 +414,21 @@ Resources:
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM4
+            reason: "This role is used by Lambda to update secrets manager. - Demo application, so using least privilege and managed policies"
+            applies_to:
+              - Policy::arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+          - id: AwsSolutions-IAM5
+            reason: "This role is used by Lambda to update secrets manager. - Demo application, so using least privilege and managed policies"
+            applies_to:
+              - Resource::*
+          - id: AwsSolutions-IAM5
+            reason: "This role is used by Lambda to update secrets manager. - Demo application, so using least privilege and managed policies"
+            applies_to:
+              - Resource::arn:aws:s3:::cloudformation-custom-resource-response-useast1/*
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'

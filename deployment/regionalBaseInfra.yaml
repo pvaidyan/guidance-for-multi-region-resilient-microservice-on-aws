@@ -151,31 +151,44 @@ Resources:
       CidrBlock: !FindInMap [RegionMap, !Ref "AWS::Region", PublicCidrBlock3]    
 
   FlowLogRole:
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            - Action:
-                - "sts:AssumeRole"
-              Effect: Allow
-              Principal:
-                Service:
-                  - vpc-flow-logs.amazonaws.com
-          Version: "2012-10-17"
-        Path: /
-        Policies:
-          - PolicyDocument:
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - "logs:CreateLogGroup"
-                    - "logs:CreateLogStream"
-                    - "logs:PutLogEvents"
-                    - "logs:DescribeLogGroups"
-                    - "logs:DescribeLogStreams"
-                  Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
-              Version: "2012-10-17"
-            PolicyName: flowlogspolicy
-      Type: "AWS::IAM::Role"
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard logs resource permissions are required for VPC Flow Logs to dynamically create log groups and streams."
+            appliesTo:
+              - "Resource::arn:aws:logs:*:${AWS::AccountId}:*"
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "Wildcard logs resource permissions are required for VPC Flow Logs to dynamically create log groups and streams."
+            appliesTo:
+              - "Resource::arn:aws:logs:*:${AWS::AccountId}:*"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service:
+                - vpc-flow-logs.amazonaws.com
+        Version: "2012-10-17"
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DescribeLogGroups"
+                  - "logs:DescribeLogStreams"
+                Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
+            Version: "2012-10-17"
+          PolicyName: flowlogspolicy
+    Type: "AWS::IAM::Role"
   VpcFlowLogs:
     Type: AWS::EC2::FlowLog
     Properties:

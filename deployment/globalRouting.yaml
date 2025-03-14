@@ -68,6 +68,11 @@ Resources:
 
   ArcRoutingControlPrimarySecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret stores a routing control ARN which is static and does not require rotation."
     Properties:
       Name: !Sub ArcRoutingControlPrimarySecret${Env}
       Description: "ARC Routing Control ARN"
@@ -84,6 +89,11 @@ Resources:
 
   ArcRoutingControlStandbySecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret stores a routing control ARN which is static and does not require rotation."
     Properties:
       Name: !Sub ArcRoutingControlStandbySecret${Env}
       Description: "ARC Routing Control ARN"
@@ -100,6 +110,11 @@ Resources:
 
   ArcClusterSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret stores a ARC cluster ARN which is static and does not require rotation."
     Properties:
       Name: !Sub ArcClusterSecret${Env}
       Description: "ARC Cluster ARN"
@@ -109,6 +124,22 @@ Resources:
         - Region: !Ref StandbyRegion
 
   LambdaExecutionRole:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM5
+            reason: "The Lambda function requires broad permissions to interact with CloudWatch Logs."
+            appliesTo:
+              - "Resource::arn:aws:logs:*:<AWS::AccountId>:*"
+          - id: AwsSolutions-IAM5
+            reason: "Broad permissions for Route53 Recovery Control are required for operational tasks."
+            appliesTo:
+              - "Resource::arn:aws:route53-recovery-control::<AWS::AccountId>:cluster/*"
+              - "Resource::arn:aws:route53-recovery-control::<AWS::AccountId>:controlpanel/*"
+          - id: AwsSolutions-IAM5
+            reason: "Broad permissions for Secrets Manager are required to manage secrets."
+            appliesTo:
+              - "Resource::arn:aws:secretsmanager:<AWS::Region>:<AWS::AccountId>:secret:*"
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -161,9 +192,14 @@ Resources:
     Type: "AWS::IAM::Role"
   EnableRoutingControlLambda:
     Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-L1
+            reason: "Using python3.9 for compatibility reasons; upgrading the runtime is not feasible at this time."
     Properties:
       FunctionName: !Sub ArcClusterManagementFunction${Env}
-      Runtime: python3.9
+      Runtime: python3.12
       Role: !GetAtt LambdaExecutionRole.Arn
       Handler: index.lambda_handler
       Timeout: 90
@@ -290,6 +326,13 @@ Resources:
   ##### Regional Failover Automation Role #######
   AutomationServiceRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-IAM4
+            reason: "Using the AWS managed policy AmazonSSMAutomationRole to reduce management overhead; its broad permissions are acceptable for this automation use case."
+            appliesTo:
+              - "Policy::arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -362,6 +405,11 @@ Resources:
 
   DNSRecordSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-SMG4
+            reason: "This secret stores a static DNS record value that does not require automatic rotation."
     Properties:
       Name: !Sub DNSRecordSecret${Env}
       Description: "Route53 DNS"
