@@ -231,7 +231,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub ${NamingPrefix}-EnableWriteForwardingForDBCluster${Env}
-      Runtime: python3.12
+      Runtime: python3.13
       Role: !GetAtt LambdaExecutionRole.Arn
       Handler: index.lambda_handler
       Timeout: 90

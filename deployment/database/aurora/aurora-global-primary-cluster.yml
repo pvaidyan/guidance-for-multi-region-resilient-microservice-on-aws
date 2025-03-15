@@ -402,7 +402,7 @@ Resources:
           DB_NAME: !Ref DatabaseName
           SecretName: !Ref DBCredentialsSecret
           DBClusterIdentifier: !Ref DBCluster
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       VpcConfig:
         SubnetIds:

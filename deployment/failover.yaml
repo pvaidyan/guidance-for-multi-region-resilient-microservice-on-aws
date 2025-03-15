@@ -166,7 +166,7 @@ Resources:
               logger.info("dummy")
 
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:

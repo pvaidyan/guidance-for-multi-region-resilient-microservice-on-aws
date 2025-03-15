@@ -192,14 +192,9 @@ Resources:
     Type: "AWS::IAM::Role"
   EnableRoutingControlLambda:
     Type: AWS::Lambda::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: AwsSolutions-L1
-            reason: "Using python3.9 for compatibility reasons; upgrading the runtime is not feasible at this time."
     Properties:
       FunctionName: !Sub ArcClusterManagementFunction${Env}
-      Runtime: python3.12
+      Runtime: python3.13
       Role: !GetAtt LambdaExecutionRole.Arn
       Handler: index.lambda_handler
       Timeout: 90
