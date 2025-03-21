@@ -161,6 +161,55 @@ Delete all the cloudformation stacks and associated resources from both the Regi
     make destroy-all
     ```
 
+## Cost
+
+The following table provides a sample cost breakdown for trying out this guidance package with the default parameters in the US East (N. Virginia) Region and US West (Oregon) Region. 
+
+## Summary
+| Cost Type | Amount (USD) |
+|-----------|-------------|
+| Upfront Cost | $0.00 |
+| Monthly Cost | $868.77 |
+| Total 12 Months Cost* | $10,425.24 |
+
+\* Includes upfront cost
+
+## Detailed Estimate
+
+### US East (N. Virginia) Region
+
+| Service | Monthly Cost | 12 Month Total | Configuration |
+|---------|-------------|----------------|---------------|
+| AWS Fargate | $216.24 | $2,594.88 | Linux, x86, 1 day duration, 6 tasks/day, 2GB memory, 20GB storage |
+| Application Load Balancer | $16.44 | $197.28 | 1 ALB |
+| Aurora MySQL | $179.98 | $2,159.76 | Aurora Standard, 2 instances, 1GB storage each |
+| DynamoDB | $0.28 | $3.36 | Standard table, 1KB item size, 1GB storage |
+| DynamoDB Streams | $0.0006 | $0.01 | 100 GetRecord API requests/day |
+| AWS FIS | $2.00 | $24.00 | 20 action-minutes/experiment, 1 target account |
+| Parameter Store | $0.00 | $0.00 | 50 standard parameters |
+| Secrets Manager | $20.00 | $240.00 | 50 secrets, 30-day duration |
+| KMS | $1.0003 | $12.00 | 1 CMK, 100 symmetric requests |
+
+### US West (Oregon) Region
+
+| Service | Monthly Cost | 12 Month Total | Configuration |
+|---------|-------------|----------------|---------------|
+| AWS Fargate | $216.24 | $2,594.88 | Linux, x86, 1 day duration, 6 tasks/day, 2GB memory, 20GB storage |
+| Application Load Balancer | $17.89 | $214.68 | 1 ALB |
+| Aurora MySQL | $175.42 | $2,105.04 | Aurora Standard, 2 instances, 1GB storage each |
+| DynamoDB | $0.28 | $3.36 | Standard table, 1KB item size, 1GB storage |
+| DynamoDB Streams | $0.0006 | $0.01 | 100 GetRecord API requests/day |
+| AWS FIS | $2.00 | $24.00 | 20 action-minutes/experiment, 1 target account |
+| Parameter Store | $0.00 | $0.00 | 50 standard parameters |
+| Secrets Manager | $20.00 | $240.00 | 50 secrets, 30-day duration |
+| KMS | $1.0003 | $12.00 | 1 CMK, 100 symmetric requests |
+
+## Acknowledgement
+*AWS Pricing Calculator provides only an estimate of your AWS fees and doesn't include any taxes that might apply. Your actual fees depend on a variety of factors, including your actual usage of AWS services.*
+*More than 100 AWS products are available on AWS Free Tier today. Click [here](https://aws.amazon.com/free/) to explore our offers.*
+
+*Note: We recommend creating a [Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html) through [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this Guidance.*
+
 ## Security
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
 
