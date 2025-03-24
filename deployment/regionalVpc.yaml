@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: 'Base Infrastructure'
+Description: 'Base Infrastructure (SO9020)'
 
 Parameters:
   Env:
