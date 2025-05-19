@@ -213,6 +213,18 @@ The following table provides a sample cost breakdown for trying out this guidanc
 ## Security
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
 
+### Dependency Vulnerability Scanning
+
+This project includes a GitHub Actions workflow that automatically scans all dependencies for known security vulnerabilities. The workflow runs on a weekly schedule, on pushes to main/master branches, on pull requests to main/master branches, and can be triggered manually.
+
+The vulnerability scanning workflow:
+- Scans Java, Node.js, and Go codebases using multiple tools (OWASP Dependency Check, npm audit, govulncheck, and Trivy)
+- Generates comprehensive reports and uploads them as workflow artifacts
+- Integrates with GitHub Security tab to display critical and high vulnerabilities
+- Publishes a consolidated summary report to GitHub Pages
+
+For more information, see the [GitHub Workflows documentation](.github/README.md).
+
 ### Considerations
 
 The codebase does not address these CDK_NAG rules since this code is NOT INTENDED for Production usage. The codebase has been created with the sole intention of demonstrating multi-Region architectural patterns with the assumption that the end-user will harden the codebase to meet the security considerations as required.
