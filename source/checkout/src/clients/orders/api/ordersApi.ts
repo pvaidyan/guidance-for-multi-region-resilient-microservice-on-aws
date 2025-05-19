@@ -28,7 +28,7 @@
  * Do not edit the class manually.
  */
 
-import localVarRequest = require('request');
+import axios from 'axios';
 import http = require('http');
 
 /* tslint:disable:no-unused-locals */
