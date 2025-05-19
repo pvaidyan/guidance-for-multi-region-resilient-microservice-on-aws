@@ -52,6 +52,8 @@ You can customize the workflow by editing the `.github/workflows/dependency-vuln
 - Add or remove services from the matrix
 - Modify the report generation script
 
+Note: The workflow uses Python 3.11 and specific versions of actions for stability.
+
 ### Interpreting Results
 
 The workflow generates several types of reports:
